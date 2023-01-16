@@ -4,6 +4,7 @@ const {
 } = require("@nomicfoundation/hardhat-network-helpers");
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");
+const { ethers } = require("ethers");
 
 describe("Test", function () {
   // We define a fixture to reuse the same setup in every test.
@@ -29,11 +30,20 @@ describe("Test", function () {
     await vault.deployed();
 
     await token.setVault(vault.address);
-    return {usdc, token, vault, owner, otherAccount};
+
+    /** 
+    const Holding = await ethers.getContractFactory("Holding");
+    const holding = await Holding.deploy(vault.address, usdc.address);
+    await holding.deployed();
+
+    await vault.addHolding(1, holding.address);
+    */
+
+    return {usdc, token, vault, owner/**, holding*/, otherAccount};
   }
 
   describe("Deployment", function () {
-    it("Mints 10 TST to msg.sender upon deployment", async function () {
+    it("Mints 10 USDC to msg.sender upon deployment", async function () {
       const { usdc, owner} = await loadFixture(deployTestTokenFixture);
       const ownerBalance = await usdc.balanceOf(owner.address);
       expect(Number(ownerBalance)).to.equal(Number(10**7));
@@ -41,14 +51,14 @@ describe("Test", function () {
   });
 
   describe("Deposit", function () {
-    it("Owner can send 10 TST to vault", async function () {
+    it("Owner can send 10 USDC to vault", async function () {
       const { usdc, token, vault, owner} = await loadFixture(deployTestTokenFixture);
       const ownerTesting = await usdc.balanceOf(owner.address);
       await usdc.connect(owner).approve(token.address, ownerTesting);
       await token.connect(owner).deposit(ownerTesting,owner.address);
       expect(Number(await vault.totalAssets())).to.equal(Number(10**7));
     });
-    it("Owner gets 10 VLT upon deposit", async function () {
+    it("Owner gets 10 FET upon deposit", async function () {
       const { usdc, token, vault, owner} = await loadFixture(deployTestTokenFixture);
       const ownerTesting = await usdc.balanceOf(owner.address);
       await usdc.connect(owner).approve(token.address, ownerTesting);
@@ -58,7 +68,7 @@ describe("Test", function () {
   });
 
   describe("Widthdraw", function () {
-    it("Can widthdraw all of funds", async function () {
+    it("Can widthdraw all FET", async function () {
       const { usdc, token, vault, owner} = await loadFixture(deployTestTokenFixture);
       const ownerTesting = await usdc.balanceOf(owner.address);
       await usdc.connect(owner).approve(token.address, ownerTesting);
@@ -67,7 +77,7 @@ describe("Test", function () {
       expect(Number(await token.balanceOf(owner.address))).to.equal(Number(0));
       expect(Number(await usdc.balanceOf(owner.address))).to.equal(Number(10**7));
     });
-    it("Can widthdraw half of funds", async function () {
+    it("Can widthdraw half of FET", async function () {
       const { usdc, token, vault, owner} = await loadFixture(deployTestTokenFixture);
       const ownerTesting = await usdc.balanceOf(owner.address);
       await usdc.connect(owner).approve(token.address, ownerTesting);
