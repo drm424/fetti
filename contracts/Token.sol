@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import "../node_modules/@openzeppelin/contracts/interfaces/IERC4626.sol";
@@ -5,13 +6,14 @@ import "../node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "../node_modules/@openzeppelin/contracts/utils/math/Math.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./IVault.sol";
+import "./Vault.sol";
 
 contract Token is ERC20, IERC4626{
     using Math for uint256;
 
     address private _gov;
     IERC20 private immutable _usdc;
-    IVault private _vault;
+    Vault private _vault;
 
     constructor(IERC20 usdc_) ERC20("fetti", "fet"){
         _gov = msg.sender;
@@ -23,9 +25,9 @@ contract Token is ERC20, IERC4626{
         return 6;
     }
 
-    function setVault(IVault vault_)external returns(IVault vault){
+    function setVault(address vault_)external returns(IVault vault){
         require(_gov==msg.sender, "Must be the gov!!");
-        _vault = vault_;
+        _vault = Vault(vault_);
         return _vault;
     }
 
@@ -35,6 +37,10 @@ contract Token is ERC20, IERC4626{
 
     function totalAssets() public view override(IERC4626) returns (uint256 totalManagedAssets){
         return _vault.totalAssets();
+    }
+
+    function totalUsdcInVault() public view returns (uint256 totalManagedAssets){
+        return _vault.totalUsdcInVault();
     }
 
     //changes in called function
@@ -60,12 +66,23 @@ contract Token is ERC20, IERC4626{
     //should be the same with previous changes
     //return what they would get - vault fee
     function maxWithdraw(address owner) public view override returns (uint256 maxAssets){
-        return _convertToAssets(balanceOf(owner), Math.Rounding.Down);
+        uint256 vaultLiquidity = _vault.totalUsdcInVault();
+        uint256 addressBalance = _convertToAssets(balanceOf(owner), Math.Rounding.Down);
+        if(vaultLiquidity>addressBalance){
+            return addressBalance;
+        }
+        return vaultLiquidity;
+        
     }
 
     //should be the same
     function maxRedeem(address owner) public view override returns (uint256 maxShares){
-        return balanceOf(owner);
+        uint256 vaultLiquidity = _convertToShares(_vault.totalUsdcInVault(), Math.Rounding.Up);
+        uint256 addressBalance = balanceOf(owner);
+        if(vaultLiquidity>addressBalance){
+            return addressBalance;
+        }
+        return vaultLiquidity;
     }
 
     //should be the same
