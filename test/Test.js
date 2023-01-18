@@ -2,9 +2,8 @@ const {
   time,
   loadFixture,
 } = require("@nomicfoundation/hardhat-network-helpers");
-const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
+const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers");
 const { expect } = require("chai");
-const { ethers } = require("ethers");
 
 describe("Test", function () {
   // We define a fixture to reuse the same setup in every test.
