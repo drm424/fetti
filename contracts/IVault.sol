@@ -10,4 +10,6 @@ interface IVault{
     function totalAssets() external view returns(uint256 assets);
 
     function widthdraw(address receiver, uint256 assets) external;
+
+    function totalUsdcInVault() external view returns(uint256 assets);
 }

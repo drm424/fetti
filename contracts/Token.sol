@@ -13,11 +13,7 @@ contract Token is ERC20, IERC4626{
 
     address private _gov;
     IERC20 private immutable _usdc;
-    Vault private _vault;
-    //make ILocker or sum shit
-    address private locker;
-    
-
+    IVault private _vault;
 
     constructor(IERC20 usdc_) ERC20("fetti", "FET"){
         _gov = msg.sender;
