@@ -25,13 +25,7 @@ describe("Test", function () {
 
     await token.setVault(vault.address);
 
-    const Holding = await ethers.getContractFactory("Holding");
-    const holding = await Holding.deploy(vault.address, usdc.address);
-    await holding.deployed();
-
-    await vault.addHolding(1, holding.address);
-
-    return {usdc, token, vault, owner, holding, otherAccount};
+    return {usdc, token, vault, owner, otherAccount};
   }
 
   describe("Deployment", function () {
@@ -91,45 +85,12 @@ describe("Test", function () {
       await token.connect(owner).deposit(ownerBalance,owner.address);
       await token.connect(owner).redeem((ownerBalance/2),owner.address,owner.address);
       
+      expect(Number(await token.maxWithdraw(owner.address))).to.equal(Number((10**6)*5));
       expect(Number(await token.balanceOf(owner.address))).to.equal(Number((10**6)*5));
       expect(Number(await usdc.balanceOf(owner.address))).to.equal(Number((10**6)*5));
     });
 
   });
 
-  describe("Holdings", function () {
 
-    it("Can add a holding to the vault", async function () {
-      const { usdc, token, vault, owner, holding} = await loadFixture(deployTestTokenFixture);
-      
-      expect(await vault.getHoldingAddress(1)).to.equal(holding.address);
-    });    
-
-    it("Gives correct max redeem/widthdraw values taking non-liquid positions into account", async function(){
-      const { usdc, token, vault, owner, holding} = await loadFixture(deployTestTokenFixture);
-      const ownerBalance = 10**7;
-
-      await usdc.connect(owner).approve(token.address, ownerBalance);
-      await token.connect(owner).deposit(ownerBalance,owner.address);
-      await token.connect(owner).redeem(ownerBalance,owner.address,owner.address);
-      await vault.connect(owner).addToHolding(5*10**6, 1);
-      
-      expect(Number(await vault.totalAssets())).to.equal(Number(10**7));
-      expect(Number(await vault.totalUsdcInVault())).to.equal(Number(5*10**6));
-      expect(Number(await token.maxRedeem(owner.address))).to.equal(Number(5*10**6));
-
-    });
-    
-    it("Can send usdc to a holding", async function () {
-      const { usdc, token, vault, owner, holding} = await loadFixture(deployTestTokenFixture);
-      const ownerBalance = 10**7;
-      
-      await usdc.connect(owner).approve(token.address, ownerBalance);
-      await token.connect(owner).deposit(ownerBalance,owner.address);
-      await vault.connect(owner).addToHolding(5*(10**6),1);
-      
-      expect(Number(await usdc.balanceOf(holding.address))).to.equal(Number(5*(10**6)));
-      expect(Number(await vault.totalAssets())).to.equal(Number(10**7));
-    });
-  });
 });

@@ -14,8 +14,12 @@ contract Token is ERC20, IERC4626{
     address private _gov;
     IERC20 private immutable _usdc;
     Vault private _vault;
+    //make ILocker or sum shit
+    address private locker;
+    
 
-    constructor(IERC20 usdc_) ERC20("fetti", "fet"){
+
+    constructor(IERC20 usdc_) ERC20("fetti", "FET"){
         _gov = msg.sender;
         _usdc = usdc_;
     }
@@ -186,7 +190,6 @@ contract Token is ERC20, IERC4626{
         _vault.widthdraw(receiver, assets);
         emit Withdraw(caller, receiver, owner, assets, shares);
     }
-
 
     function getVaultAssets() internal view returns (uint256 assets){
         return _vault.totalAssets();

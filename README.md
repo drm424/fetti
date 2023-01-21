@@ -1,1 +1,1 @@
-![alt text](./A1.02.002.jpg)
+![alt text](./new_system.jpg)
