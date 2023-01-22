@@ -13,10 +13,4 @@ interface IPool{
     function totalLoanedUSDC() external returns(uint256);
 
     function totalUSDC() external returns(uint256);
-
-    function maxColateral(address borrower_) external returns(uint256 amount);
-
-    function addColateral(address borrower_, uint256 amount_) external returns(uint256 amount);
-
-    function borrow(address borrower_, uint256 amount_) external returns(uint256 amount);
 }
