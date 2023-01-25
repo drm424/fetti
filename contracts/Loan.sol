@@ -1,36 +1,37 @@
 pragma solidity ^0.8.0;
 
 import "./ILoan.sol";
-import "./IPool.sol";
+import "./ILoaner.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract Loan is ILoan, ERC721{
 
-    address private _borrower;
-    IPool private _ethPool;
+    ILoaner private _ethPool;
     IERC20 private _usdc;
 
-    uint256 public _depositedETH;
-    uint256 public _borrowedUSDC;
-    uint256 public _maxLiquiadtionRatio;
-    uint256 public _closingFee;
-    uint256 public _liquidationPenalty;
+    //loan id -> amount of deposited eth for a loan
+    mapping(uint256 => uint256) public _depositedETH;
+    //loan id -> the sfxsEth backing ration for a loan
+    mapping(uint256 => uint256) public _sfxsEthRatioAtOpening;
+    //loan id -> amount of usdc borrowed for a loan
+    mapping(uint256 => uint256) public _borrowedUSDC;
+    //loan id -> liquidation ratio for a loan
+    mapping(uint256 => uint256) public _maxLiquiadtionRatio;
+    //loan id -> closing fee for the given loan
+    mapping(uint256 => uint256) public _closingFee;
+    //loan id -> liquidation penalty for a given loan 
+    mapping(uint256 => uint256) public _liquidationPenalty;
+
+    uint256 private count;
+    uint256 public _currMaxLiquidationRatio;
+    uint256 public _currClosingFee;
+    uint256 public _currLiquidationPenalty;
 
     //eventually change constructor to use the passed in maxiquidationRatio, closingFee, and liquiationPenalty
     constructor(address ethPool_, address usdc_, address borrower_, uint256 maxLiquidationRatio_, uint256 closingFee_, uint256 liquiationPenalty_) ERC721("EthColateralUsdcBorrowed", "cETHbUSDC") {
-        _borrower = borrower_;
-        _ethPool = IPool(ethPool_);
+        _ethPool = ILoaner(ethPool_);
         _usdc = IERC20(usdc_);
-        _depositedETH = 0;
-        _borrowedUSDC = 0;
-        _maxLiquiadtionRatio = ((1 ether)/10)*8;
-        _closingFee = ((1 ether)/1000);
-        _liquidationPenalty = ((1 ether)/10);
-    }
-
-    function borrowedAsset() external view returns(address){
-        return address(_usdc);
     }
 
     //eth doesn't have an address
@@ -38,34 +39,35 @@ contract Loan is ILoan, ERC721{
         return address(0);
     }
 
-    //needs to stake fxsEth to earn yeild
-    function depositColateral(uint256 amount_) external payable returns(uint256 totalColateral){
-        require(msg.sender==_borrower);
-        _depositedETH+=msg.value;
-        return _depositedETH;
+    function borrowedAsset() external view returns(address){
+        return address(_usdc);
     }
 
-    function borrow(uint256 amount_, address sendTo_) external returns(uint256 amount){
-        require(msg.sender==_borrower);
-        require(_maxLiquiadtionRatio>(((_borrowedUSDC+amount_)*(10**12))/(_depositedETH)), "Requested amount liquidates your loan");
-        require(_ethPool.totalFreeUSDC()>=amount_);
-        IPool.requestUSDC(uint256)
-        return 0;
+    function depositColateral(address receiver) external payable returns(uint256 loanId){
+        require(balanceOf(receiver)==0,"Cannot have more than 1 outstanding loan");
+        count=count+1;
+        _depositedETH[count] = msg.value;
+        _maxLiquiadtionRatio[count] = _currMaxLiquidationRatio;
+        _closingFee[count] = _currClosingFee;
+        _liquidationPenalty[count] = _currLiquidationPenalty;
+        //now backed 1 to 1, most loan functionality is done will and the sfxseth will be added
+        //will have to swap using frax contracts
+        _sfxsEthRatioAtOpening[count] = 1;
+        //mint nft last
+        _safeMint(receiver, count);
+        return count;
     }
 
-    //needs completion
-    function maxBorrow(address sendTo_) external pure returns(uint256 amount){
-        return 0;
+    function addColateral(uint256 loanID, uint256 amount) external returns(uint256 totalColateral){
+
     }
 
-    //needs completion
-    function liquidityRatio() external pure returns(uint256 amount){
-        return 0;
-    }
+    //function borrow(uint256 loanId, uint256 amount_, address sendTo_) external returns(uint256 amount);
 
-    //needs completion
-    function poke(address sendRewards_) external pure returns(uint256 amount){
-        return 0;
-    }
+    //function maxBorrow(uint256 loanId, address sendTo_) external returns(uint256 amount);
+
+    //function liquidityRatio(uint256 loanId) external returns(uint256 amount);
+
+    //function poke(address sendRewards_) external returns(uint256 amount);
 
 }

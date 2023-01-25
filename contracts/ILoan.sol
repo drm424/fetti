@@ -1,27 +1,25 @@
 pragma solidity ^0.8.0;
 
 interface ILoan{
-    event ColateralDeposit(uint256 amount);
+    event ColateralDeposit(address sender, uint256 loanId, uint256 amount);
 
-    event BorrowedUSDC(uint256 amount, uint256 liquidityRatio);
+    event BorrowedUSDC(address receiver, uint256 loanId, uint256 amount, uint256 liquidityRatio);
 
-    event RepaidUSDC(uint256 amount, uint256 liquidityRatio);
+    event RepaidUSDC(address sender, uint256 loanId, uint256 amount, uint256 liquidityRatio);
 
-    event Liquidation(uint256 amount, address poker);
+    event Liquidation(uint256 loanId, uint256 amount, address poker);
 
     event ClosedLoan(uint256 amount, uint256 vaultProfit);
-
-    function borrowedAsset() external returns(address);
-
-    function suppliedAsset() external returns(address);
     
-    function depositColateral(uint256 amount_) external payable returns(uint256 amount);
+    function depositColateral(address receiver, uint256 amount_) external payable returns(uint256 loanId);
 
-    function borrow(uint256 amount_, address sendTo_) external returns(uint256 amount);
+    function addColateral(uint256 loanID, uint256 amount) external returns(uint256 totalColateral);
 
-    function maxBorrow(address sendTo_) external returns(uint256 amount);
+    function borrow(uint256 loanId, uint256 amount_, address sendTo_) external returns(uint256 amount);
 
-    function liquidityRatio() external returns(uint256 amount);
+    function maxBorrow(uint256 loanId, address sendTo_) external returns(uint256 amount);
+
+    function liquidityRatio(uint256 loanId) external returns(uint256 amount);
 
     function poke(address sendRewards_) external returns(uint256 amount);
 }
