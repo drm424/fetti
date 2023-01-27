@@ -66,12 +66,13 @@ contract ethLoan is ILoanEth, ERC721{
     //mapping(uint256 => uint256) public _closingFee;
     //mapping(uint256 => uint256) public _liquidationPenalty;
 
-    function depositColateralEth(address receiver_) external payable returns(uint256 loanId){
+    function depositColateralEth() external payable returns(uint256 loanId){
+        require(balanceOf(msg.sender)==0, "Cannot have more than 1 outstanding loan");
         _count=_count+1;
         _depositedETH[_count] = msg.value;
         _maxLiquiadtionRatio[_count] = _currMaxLiquidationRatio;
         _closingFee[_count] = _currClosingFee;
-        _mint(receiver_, _count);
+        _mint(msg.sender, _count);
     }
 
     function addColateralEth(uint256 loanId_) external payable returns(uint256 totalColateral){

@@ -26,7 +26,11 @@ describe("Test", function () {
 
     await token.setVault(vault.address);
 
-    return {usdc, token, vault, owner, otherAccount};
+    const EthLoan = await ethers.getContractFactory("ethLoan");
+    const ethLoan = await EthLoan.deploy(vault.address, usdc.address);
+    await ethLoan.deployed();
+
+    return {usdc, token, vault, ethLoan, owner, otherAccount};
   }
 
   describe("Deployment of USDC", function () {
@@ -93,13 +97,15 @@ describe("Test", function () {
 
   });
 
-  /**
   describe("Loan", function () {
 
     it("Can deposit eth into the vault", async function () {
-      const {loan, owner} = await loadFixture(deployLoanFixture);
+      const {ethLoan, otherAccount} = await loadFixture(deployFixture);
+      await ethLoan.connect(otherAccount).depositColateralEth({ value: ethers.utils.parseEther("1") });
+      expect(Number(await ethLoan.balanceOf(otherAccount.address))).to.equal(Number(1));
+
     });
 
   });
-  */
+  
 });
