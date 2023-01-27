@@ -30,7 +30,8 @@ contract ethLoan is ILoanEth, ERC721{
     uint256 public _currLiquidationPenalty;
 
     //eventually change constructor to use the passed in maxiquidationRatio, closingFee, and liquiationPenalty
-    constructor(address ethPool_, address usdc_, uint256 maxLiquidationRatio_, uint256 closingFee_, uint256 liquiationPenalty_) ERC721("Fetti Eth Colateralized Loan", "FetEthUsdc") {
+    //constructor(address ethPool_, address usdc_, uint256 maxLiquidationRatio_, uint256 closingFee_, uint256 liquiationPenalty_) ERC721("Fetti Eth Colateralized Loan", "FetEthUsdc") {
+    constructor(address ethPool_, address usdc_) ERC721("Fetti Eth Colateralized Loan", "FetEthUsdc") {
         _ethPool = ILoaner(ethPool_);
         _usdc = IERC20(usdc_);
         _currMaxLiquidationRatio = 80;
@@ -48,37 +49,48 @@ contract ethLoan is ILoanEth, ERC721{
         return address(_usdc);
     }
 
-    function depositColateral(address receiver_, uint256 amount_) external returns(uint256 loanId){
+    function depositColateral(address receiver_, uint256 amount_) external pure returns(uint256 loanId){
         require(0==1, "This is an eth loan");
         return 0;
     }
 
-    function addColateral(uint256 loanId_, uint256 amount) external returns(uint256 totalColateral){
+    function addColateral(uint256 loanId_, uint256 amount) external pure returns(uint256 totalColateral){
         require(0==1, "This is an eth loan");
         return 0;
     }
 
-    function depositColateralEth(address receiver_, uint256 amount_) external payable returns(uint256 loanId){
+    //mapping(uint256 => uint256) public _depositedETH;
+    //mapping(uint256 => uint256) public _sfxsEthRatioAtOpening;
+    //mapping(uint256 => uint256) public _borrowedUSDC;
+    //mapping(uint256 => uint256) public _maxLiquiadtionRatio;
+    //mapping(uint256 => uint256) public _closingFee;
+    //mapping(uint256 => uint256) public _liquidationPenalty;
+
+    function depositColateralEth(address receiver_) external payable returns(uint256 loanId){
+        _count=_count+1;
+        _depositedETH[_count] = msg.value;
+        _maxLiquiadtionRatio[_count] = _currMaxLiquidationRatio;
+        _closingFee[_count] = _currClosingFee;
+        _mint(receiver_, _count);
+    }
+
+    function addColateralEth(uint256 loanId_) external payable returns(uint256 totalColateral){
         return 0;
     }
 
-    function addColateralEth(uint256 loanId_, uint256 amount) external payable returns(uint256 totalColateral){
+    function borrow(uint256 loanId_, uint256 amount_, address sendTo_) external pure returns(uint256 amount){
         return 0;
     }
 
-    function borrow(uint256 loanId_, uint256 amount_, address sendTo_) external returns(uint256 amount){
+    function maxBorrow(uint256 loanId_, address sendTo_) external pure returns(uint256 amount){
         return 0;
     }
 
-    function maxBorrow(uint256 loanId_, address sendTo_) external returns(uint256 amount){
+    function liquidityRatio(uint256 loanId_) external pure returns(uint256 amount){
         return 0;
     }
 
-    function liquidityRatio(uint256 loanId_) external returns(uint256 amount){
-        return 0;
-    }
-
-    function poke(address sendRewards_) external returns(uint256 amount){
+    function poke(address sendRewards_) external pure returns(uint256 amount){
         return 0;
     }
 }

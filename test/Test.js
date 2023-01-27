@@ -4,10 +4,11 @@ const {
 } = require("@nomicfoundation/hardhat-network-helpers");
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers");
 const { expect } = require("chai");
+const { ethers } = require("hardhat");
 
 describe("Test", function () {
 
-  async function deployTestTokenFixture() {
+  async function deployFixture() {
     // Contracts are deployed using the first signer/account by default
     const [owner, otherAccount] = await ethers.getSigners();
 
@@ -28,10 +29,10 @@ describe("Test", function () {
     return {usdc, token, vault, owner, otherAccount};
   }
 
-  describe("Deployment", function () {
+  describe("Deployment of USDC", function () {
 
     it("Mints 10 USDC to msg.sender upon deployment", async function () {
-      const { usdc, owner} = await loadFixture(deployTestTokenFixture);
+      const { usdc, owner} = await loadFixture(deployFixture);
       const ownerBalance = await usdc.balanceOf(owner.address);
       
       expect(Number(ownerBalance)).to.equal(Number(10**7));
@@ -39,10 +40,10 @@ describe("Test", function () {
 
   });
 
-  describe("Deposit", function () {
+  describe("Deposit as a Creditor", function () {
 
     it("Owner can send 10 USDC to vault", async function () {
-      const { usdc, token, vault, owner} = await loadFixture(deployTestTokenFixture);
+      const { usdc, token, vault, owner} = await loadFixture(deployFixture);
       
       const ownerBalance = 10**7;
       await usdc.connect(owner).approve(token.address, ownerBalance);
@@ -52,7 +53,7 @@ describe("Test", function () {
     });
 
     it("Owner gets 10 FET upon deposit", async function () {
-      const { usdc, token, vault, owner} = await loadFixture(deployTestTokenFixture);
+      const { usdc, token, vault, owner} = await loadFixture(deployFixture);
       
       const ownerBalance = 10**7;
       await usdc.connect(owner).approve(token.address, ownerBalance);
@@ -63,10 +64,10 @@ describe("Test", function () {
 
   });
 
-  describe("Widthdraw", function () {
+  describe("Widthdraw as a creditor", function () {
 
     it("Can widthdraw all FET", async function () {
-      const { usdc, token, vault, owner} = await loadFixture(deployTestTokenFixture);
+      const { usdc, token, vault, owner} = await loadFixture(deployFixture);
       const ownerBalance = 10**7;
       
       await usdc.connect(owner).approve(token.address, ownerBalance);
@@ -78,7 +79,7 @@ describe("Test", function () {
     });
 
     it("Can widthdraw half of FET", async function () {
-      const { usdc, token, vault, owner} = await loadFixture(deployTestTokenFixture);
+      const { usdc, token, vault, owner} = await loadFixture(deployFixture);
       const ownerBalance = 10**7;
       
       await usdc.connect(owner).approve(token.address, ownerBalance);
@@ -92,5 +93,13 @@ describe("Test", function () {
 
   });
 
+  /**
+  describe("Loan", function () {
 
+    it("Can deposit eth into the vault", async function () {
+      const {loan, owner} = await loadFixture(deployLoanFixture);
+    });
+
+  });
+  */
 });

@@ -5,7 +5,7 @@ import "./ILoan.sol";
 
 interface ILoanEth is ILoan{
 
-    function depositColateralEth(address receiver_, uint256 amount_) external payable returns(uint256 loanId);
+    function depositColateralEth(address receiver_) external payable returns(uint256 loanId);
 
-    function addColateralEth(uint256 loanId_, uint256 amount) external payable returns(uint256 totalColateral);
+    function addColateralEth(uint256 loanId_) external payable returns(uint256 totalColateral);
 }
