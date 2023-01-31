@@ -49,11 +49,13 @@ contract ethLoan is ILoanEth, ERC721{
         return address(_usdc);
     }
 
+    //not needed for eth
     function depositColateral(address receiver_, uint256 amount_) external pure returns(uint256 loanId){
         require(0==1, "This is an eth loan");
         return 0;
     }
 
+    //not needed for eth
     function addColateral(uint256 loanId_, uint256 amount) external pure returns(uint256 totalColateral){
         require(0==1, "This is an eth loan");
         return 0;
@@ -73,9 +75,12 @@ contract ethLoan is ILoanEth, ERC721{
         _maxLiquiadtionRatio[_count] = _currMaxLiquidationRatio;
         _closingFee[_count] = _currClosingFee;
         _mint(msg.sender, _count);
+        return _count;
     }
 
-    function addColateralEth(uint256 loanId_) external payable returns(uint256 totalColateral){
+    function addColateralEth(uint256 loanId_) external payable returns(uint256 totalColateral){      
+        require(ownerOf(loanId_)!=address(0));
+        _depositedETH[loanId_]+=msg.value;
         return 0;
     }
 
