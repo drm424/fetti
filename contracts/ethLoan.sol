@@ -77,7 +77,7 @@ contract ethLoan is ILoanEth, ERC721{
     //mapping(uint256 => uint256) public _closingFee;
     //mapping(uint256 => uint256) public _liquidationPenalty;
 
-    function depositColateralEth() external payable returns(uint256 loanId){
+    function depositColateralEth() external payable returns(uint256){
         require(balanceOf(msg.sender)==0, "Cannot have more than 1 outstanding loan");
         _count=_count+1;
         _unlockTime[_count] = block.timestamp + _currLockTime;
@@ -88,20 +88,21 @@ contract ethLoan is ILoanEth, ERC721{
         return _count;
     }
 
-    function addColateralEth(uint256 loanId_) external payable returns(uint256 totalColateral){      
+    function addColateralEth(uint256 loanId_) external payable returns(uint256){      
         require(ownerOf(loanId_)!=address(0));
         _depositedETH[loanId_]+=msg.value;
-        return 0;
+        return _depositedETH[loanId_];
     }
 
     //use the other stored loan info to take fees from the closure
-    function widthdrawColateral(address payable receiver_, uint256 loanId_) external returns(uint256 amount){
+    //remove loan information from mapping
+    function widthdrawColateral(address payable receiver_, uint256 loanId_) external returns(uint256){
         require(msg.sender==ownerOf(loanId_));
         require(block.timestamp>_unlockTime[loanId_]);
-        uint256 _amount = _depositedETH[loanId_];
+        uint256 _amount = _depositedETH[loanId_] * 1;
         _burn(loanId_);
-        require(receiver_.send(_amount), "Transfer failed");
-        return amount;
+        receiver_.transfer(_amount);
+        return _depositedETH[loanId_];
     }
 
     function totalColateral(uint256 loanId_) public view returns(uint256 amount){
