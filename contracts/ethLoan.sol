@@ -104,6 +104,11 @@ contract ethLoan is ILoanEth, ERC721{
         return amount;
     }
 
+    function totalColateral(uint256 loanId_) public view returns(uint256 amount){
+        require(ownerOf(loanId_)!=address(0));
+        return _depositedETH[loanId_];
+    }
+
     function borrow(uint256 loanId_, uint256 amount_, address sendTo_) external pure returns(uint256 amount){
         return 0;
     }
