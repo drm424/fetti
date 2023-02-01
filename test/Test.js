@@ -110,7 +110,22 @@ describe("Test", function () {
       const id = await ethLoan.connect(otherAccount).depositColateralEth({ value: ethers.utils.parseEther("1") });
       expect(Number(await ethLoan.balanceOf(otherAccount.address))).to.equal(Number(1));
       await ethLoan.connect(otherAccount).addColateralEth(Number(1), { value: ethers.utils.parseEther("2") });
-      expect(Number(await ethLoan.balanceOf()))
+      expect(Number(await ethLoan.idColateralBalance(Number(1)))).to.equal(Number(3*10**18));
+    });
+
+    it("Can close an outstanding loan", async function () {
+      const {ethLoan, owner, otherAccount} = await loadFixture(deployFixture);
+      const id = await ethLoan.connect(otherAccount).depositColateralEth({ value: ethers.utils.parseEther("1") });
+      expect(Number(await ethLoan.balanceOf(otherAccount.address))).to.equal(Number(1));
+      await ethLoan.connect(otherAccount).addColateralEth(Number(1), { value: ethers.utils.parseEther("2") });
+
+      const returnedAmount = await ethLoan.connect(otherAccount).widthdrawColateral(otherAccount.address,1);
+
+      expect(Number(returnedAmount)).to.equal(Number(3));
+
+
+
+
     });
 
   });

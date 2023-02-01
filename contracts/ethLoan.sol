@@ -13,6 +13,8 @@ contract ethLoan is ILoanEth, ERC721{
 
     //loan id -> amount of deposited eth for a loan
     mapping(uint256 => uint256) public _depositedETH;
+    //loan id -> locktime for a loan 
+    mapping(uint256 => uint256) public _unlockTime;
     //loan id -> the sfxsEth backing ration for a loan
     mapping(uint256 => uint256) public _sfxsEthRatioAtOpening;
     //loan id -> amount of usdc borrowed for a loan
@@ -24,7 +26,13 @@ contract ethLoan is ILoanEth, ERC721{
     //loan id -> liquidation penalty for a given loan 
     mapping(uint256 => uint256) public _liquidationPenalty;
 
+    function idColateralBalance(uint256 loanId_) external view returns(uint256 amount){
+        require(ownerOf(loanId_)!=address(0));
+        return _depositedETH[loanId_];
+    }
+
     uint256 private _count;
+    uint256 private _currLockTime;
     uint256 public _currMaxLiquidationRatio;
     uint256 public _currClosingFee;
     uint256 public _currLiquidationPenalty;
@@ -34,6 +42,7 @@ contract ethLoan is ILoanEth, ERC721{
     constructor(address ethPool_, address usdc_) ERC721("Fetti Eth Colateralized Loan", "FetEthUsdc") {
         _ethPool = ILoaner(ethPool_);
         _usdc = IERC20(usdc_);
+        _currLockTime = 5;
         _currMaxLiquidationRatio = 80;
         _currClosingFee = 1;
         _currLiquidationPenalty=15;
@@ -71,6 +80,7 @@ contract ethLoan is ILoanEth, ERC721{
     function depositColateralEth() external payable returns(uint256 loanId){
         require(balanceOf(msg.sender)==0, "Cannot have more than 1 outstanding loan");
         _count=_count+1;
+        _unlockTime[_count] = block.timestamp + _currLockTime;
         _depositedETH[_count] = msg.value;
         _maxLiquiadtionRatio[_count] = _currMaxLiquidationRatio;
         _closingFee[_count] = _currClosingFee;
@@ -82,6 +92,16 @@ contract ethLoan is ILoanEth, ERC721{
         require(ownerOf(loanId_)!=address(0));
         _depositedETH[loanId_]+=msg.value;
         return 0;
+    }
+
+    //use the other stored loan info to take fees from the closure
+    function widthdrawColateral(address payable receiver_, uint256 loanId_) external returns(uint256 amount){
+        require(msg.sender==ownerOf(loanId_));
+        require(block.timestamp>_unlockTime[loanId_]);
+        uint256 _amount = _depositedETH[loanId_];
+        _burn(loanId_);
+        require(receiver_.send(_amount), "Transfer failed");
+        return amount;
     }
 
     function borrow(uint256 loanId_, uint256 amount_, address sendTo_) external pure returns(uint256 amount){
