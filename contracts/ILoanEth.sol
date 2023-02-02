@@ -8,4 +8,6 @@ interface ILoanEth is ILoan{
     function depositColateralEth() external payable returns(uint256 loanId);
 
     function addColateralEth(uint256 loanId_) external payable returns(uint256 totalColateral);
+
+    function widthdrawColateralEth(address payable receiver_, uint256 loanId_) external payable returns(uint256);
 }

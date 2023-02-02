@@ -8,23 +8,25 @@ import "../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract ethLoan is ILoanEth, ERC721{
 
+    event Testing(uint256 line);
+
     ILoaner private _ethPool;
     IERC20 private _usdc;
 
     //loan id -> amount of deposited eth for a loan
-    mapping(uint256 => uint256) public _depositedETH;
+    mapping(uint256 => uint256) private _depositedETH;
     //loan id -> locktime for a loan 
-    mapping(uint256 => uint256) public _unlockTime;
+    mapping(uint256 => uint256) private _unlockTime;
     //loan id -> the sfxsEth backing ration for a loan
-    mapping(uint256 => uint256) public _sfxsEthRatioAtOpening;
+    mapping(uint256 => uint256) private _sfxsEthRatioAtOpening;
     //loan id -> amount of usdc borrowed for a loan
-    mapping(uint256 => uint256) public _borrowedUSDC;
+    mapping(uint256 => uint256) private _borrowedUSDC;
     //loan id -> liquidation ratio for a loan
-    mapping(uint256 => uint256) public _maxLiquiadtionRatio;
+    mapping(uint256 => uint256) private _maxLiquiadtionRatio;
     //loan id -> closing fee for the given loan
-    mapping(uint256 => uint256) public _closingFee;
+    mapping(uint256 => uint256) private _closingFee;
     //loan id -> liquidation penalty for a given loan 
-    mapping(uint256 => uint256) public _liquidationPenalty;
+    mapping(uint256 => uint256) private _liquidationPenalty;
 
     function idColateralBalance(uint256 loanId_) external view returns(uint256 amount){
         require(ownerOf(loanId_)!=address(0));
@@ -42,7 +44,7 @@ contract ethLoan is ILoanEth, ERC721{
     constructor(address ethPool_, address usdc_) ERC721("Fetti Eth Colateralized Loan", "FetEthUsdc") {
         _ethPool = ILoaner(ethPool_);
         _usdc = IERC20(usdc_);
-        _currLockTime = 5;
+        _currLockTime = 1;
         _currMaxLiquidationRatio = 80;
         _currClosingFee = 1;
         _currLiquidationPenalty=15;
@@ -66,6 +68,12 @@ contract ethLoan is ILoanEth, ERC721{
 
     //not needed for eth
     function addColateral(uint256 loanId_, uint256 amount) external pure returns(uint256 totalColateral){
+        require(0==1, "This is an eth loan");
+        return 0;
+    }
+
+    //not needed for eth
+    function widthdrawColateral(address receiver_, uint256 loanId_) external pure returns(uint256){
         require(0==1, "This is an eth loan");
         return 0;
     }
@@ -96,13 +104,13 @@ contract ethLoan is ILoanEth, ERC721{
 
     //use the other stored loan info to take fees from the closure
     //remove loan information from mapping
-    function widthdrawColateral(address payable receiver_, uint256 loanId_) external returns(uint256){
+    function widthdrawColateralEth(address payable receiver_, uint256 loanId_) external payable returns(uint256){
         require(msg.sender==ownerOf(loanId_));
         require(block.timestamp>_unlockTime[loanId_]);
-        uint256 _amount = _depositedETH[loanId_] * 1;
+        uint256 amount = _depositedETH[loanId_];
         _burn(loanId_);
-        receiver_.transfer(_amount);
-        return _depositedETH[loanId_];
+        receiver_.transfer(amount);
+        return amount;
     }
 
     function totalColateral(uint256 loanId_) public view returns(uint256 amount){

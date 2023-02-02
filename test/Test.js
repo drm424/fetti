@@ -44,7 +44,7 @@ describe("Test", function () {
 
   });
 
-  describe("Deposit as a Creditor", function () {
+  describe("Deposit as a creditor", function () {
 
     it("Owner can send 10 USDC to vault", async function () {
       const { usdc, token, vault, owner} = await loadFixture(deployFixture);
@@ -117,16 +117,16 @@ describe("Test", function () {
       await new Promise(resolve => setTimeout(resolve, 6000));
     };
 
-    it("Can close an outstanding loan", async function () {
+    it("Close an outstanding loan", async function () {
       const {ethLoan, owner, otherAccount} = await loadFixture(deployFixture);
-      const id = await ethLoan.connect(otherAccount).depositColateralEth({ value: ethers.utils.parseEther("1") });
-      expect(Number(await ethLoan.totalColateral(Number(1)))).to.equal(Number(1*10**18));
-      await ethLoan.connect(otherAccount).addColateralEth(Number(1), { value: ethers.utils.parseEther("2") });
+      const id = await ethLoan.connect(owner).depositColateralEth({value: ethers.utils.parseEther("3")});
+      expect(Number(await ethLoan.idColateralBalance(Number(1)))).to.equal(Number(3*(10**18)));
       await pause();
-      //expect(Number(await ethLoan.totalColateral(1))).to.equal(3*10**18);
-      const returnedAmount = Number(await ethLoan.connect(otherAccount).widthdrawColateral(otherAccount.address,Number(1)));
-      expect(returnedAmount).to.equal(Number(3*(10**18)));
+      const ownAdd = ethers.utils.getAddress(owner.address);
+      const res = await ethLoan.connect(owner).widthdrawColateralEth(ownAdd,1);
+      expect(Number(res)/(10**18)).to.equal(Number(3*(10**18)));
     });
+    
 
   });
   
