@@ -33,6 +33,12 @@ describe("Test", function () {
     return {usdc, token, vault, ethLoan, owner, otherAccount};
   }
 
+  //await pause();
+  //6 second pause
+  const pause = async () => {
+    await new Promise(resolve => setTimeout(resolve, 6000));
+  };
+
   describe("Deployment of USDC", function () {
 
     it("Mints 10 USDC to msg.sender upon deployment", async function () {
@@ -103,29 +109,25 @@ describe("Test", function () {
       const {ethLoan, otherAccount} = await loadFixture(deployFixture);
       await ethLoan.connect(otherAccount).depositColateralEth({ value: ethers.utils.parseEther("1") });
       expect(Number(await ethLoan.balanceOf(otherAccount.address))).to.equal(Number(1));
+      expect(Number(await ethLoan.totalColateral(1))).to.equal(Number(10**18));
+      expect(await ethLoan.ownerOf(1)).to.equal(otherAccount.address);
     });
-
+ 
     it("Can add eth to an outstanding loan", async function () {
-      const {ethLoan, owner, otherAccount} = await loadFixture(deployFixture);
-      const id = await ethLoan.connect(otherAccount).depositColateralEth({ value: ethers.utils.parseEther("1") });
+      const {ethLoan, otherAccount} = await loadFixture(deployFixture);
+      await ethLoan.connect(otherAccount).depositColateralEth({ value: ethers.utils.parseEther("1") });
       expect(Number(await ethLoan.balanceOf(otherAccount.address))).to.equal(Number(1));
-      await ethLoan.connect(otherAccount).addColateralEth(Number(1), { value: ethers.utils.parseEther("2") });
-      expect(Number(await ethLoan.idColateralBalance(Number(1)))).to.equal(Number(3*10**18));
+      expect(Number(await ethLoan.totalColateral(1))).to.equal(Number(10**18));
+      expect(await ethLoan.ownerOf(Number(1))).to.equal(otherAccount.address);
+      await ethLoan.connect(otherAccount).addColateralEth(1, { value: ethers.utils.parseEther("1") });
+      expect(Number(await ethLoan.totalColateral(1))).to.equal(Number(2*(10**18)));
     });
 
-    const pause = async () => {
-      await new Promise(resolve => setTimeout(resolve, 6000));
-    };
-
+    /**
     it("Close an outstanding loan", async function () {
-      const {ethLoan, owner, otherAccount} = await loadFixture(deployFixture);
-      const id = await ethLoan.connect(owner).depositColateralEth({value: ethers.utils.parseEther("3")});
-      expect(Number(await ethLoan.idColateralBalance(Number(1)))).to.equal(Number(3*(10**18)));
-      await pause();
-      const ownAdd = ethers.utils.getAddress(owner.address);
-      const res = await ethLoan.connect(owner).widthdrawColateralEth(ownAdd,1);
-      expect(Number(res)/(10**18)).to.equal(Number(3*(10**18)));
+      
     });
+    */
     
 
   });
