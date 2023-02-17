@@ -8,7 +8,9 @@ import "../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract ethLoan is ILoanEth, ERC721{
 
-    event NewMint(address mintor, uint256 tokenId);
+    event LoanOpen(address mintor, uint256 tokenId, uint256 amount);
+    event AddedColateral(uint256 tokenId, uint256 amount);
+    event LoanClose(address receiver, uint256 tokenId, uint256 amount);
 
     struct Loan{
         uint256 id;
@@ -71,7 +73,7 @@ contract ethLoan is ILoanEth, ERC721{
         uint256 unlockTime = block.timestamp + 1;
         _outstandingLoans[countLocal] = Loan(countLocal,msg.value,0,unlockTime,80,10,45,45,10);
         _safeMint(msg.sender, countLocal);
-        emit NewMint(msg.sender,countLocal);
+        emit LoanOpen(msg.sender,countLocal,msg.value);
         return countLocal;
     }
 
@@ -79,13 +81,21 @@ contract ethLoan is ILoanEth, ERC721{
         require(msg.value>0,"must send eth!!");
         require(msg.sender==ownerOf(loanId_),"Loan doesn't exist or you are not the owner of the loan");
         _outstandingLoans[loanId_].depositedEth+=msg.value;
+        emit AddedColateral(loanId_, msg.value);
         return _outstandingLoans[loanId_].depositedEth;
     }
 
     //use the other stored loan info to take fees from the closure
     //remove loan information from mapping
     function widthdrawColateralEth(address payable receiver_, uint256 loanId_) external payable returns(uint256){
-        return 0;
+        require(_outstandingLoans[loanId_].unlockTime<block.timestamp,"Colateral is still locked");
+        require(msg.sender==ownerOf(loanId_),"Must be the owner of the loan");
+        uint256 amount = _outstandingLoans[loanId_].depositedEth;
+        delete _outstandingLoans[loanId_];
+        _burn(loanId_);
+        require(receiver_.send(amount), "transation failed");   
+        emit LoanClose(receiver_, loanId_, amount);     
+        return amount;
     }
 
     function totalColateral(uint256 loanId_) public view returns(uint256){

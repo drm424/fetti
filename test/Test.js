@@ -34,9 +34,9 @@ describe("Test", function () {
   }
 
   //await pause();
-  //6 second pause
+  //2 second pause
   const pause = async () => {
-    await new Promise(resolve => setTimeout(resolve, 6000));
+    await new Promise(resolve => setTimeout(resolve, 2000));
   };
 
   describe("Deployment of USDC", function () {
@@ -123,11 +123,18 @@ describe("Test", function () {
       expect(Number(await ethLoan.totalColateral(1))).to.equal(Number(2*(10**18)));
     });
 
-    /**
+    
     it("Close an outstanding loan", async function () {
-      
+      const {ethLoan, otherAccount} = await loadFixture(deployFixture);
+      await ethLoan.connect(otherAccount).depositColateralEth({ value: ethers.utils.parseEther("1") });
+      expect(Number(await ethLoan.balanceOf(otherAccount.address))).to.equal(Number(1));
+      expect(Number(await ethLoan.totalColateral(1))).to.equal(Number(10**18));
+      expect(await ethLoan.ownerOf(Number(1))).to.equal(otherAccount.address);
+      await pause();
+      await ethLoan.connect(otherAccount).widthdrawColateralEth('0x0000000000000000000000000000000000000004',1);
+      expect(Number(await ethers.provider.getBalance('0x0000000000000000000000000000000000000004'))).to.equal(Number(10**18));
     });
-    */
+    
     
 
   });
