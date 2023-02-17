@@ -133,6 +133,7 @@ describe("Test", function () {
       await pause();
       await ethLoan.connect(otherAccount).widthdrawColateralEth('0x0000000000000000000000000000000000000004',1);
       expect(Number(await ethers.provider.getBalance('0x0000000000000000000000000000000000000004'))).to.equal(Number(10**18));
+      expect(await ethLoan.exists(1)).to.equal(false);
     });
     
     

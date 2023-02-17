@@ -118,4 +118,9 @@ contract ethLoan is ILoanEth, ERC721{
     function poke(address sendRewards_) external pure returns(uint256 amount){
         return 0;
     }
+
+    //purely for testing
+    function exists(uint256 tokenId) public view returns (bool) {
+        return _ownerOf(tokenId) != address(0);
+    }
 }
