@@ -45,6 +45,12 @@ contract ethLoan is ILoanEth, ERC721{
         return address(_usdc);
     }
 
+    //add global var and track loaned out amounts with each borrow and repayment
+    function totalLoanedOut() external view returns(uint256 amount){
+        return 0;
+    }
+
+
     //not needed for eth
     function depositColateral(address receiver_, uint256 amount_) external pure returns(uint256 loanId){
         require(0==1, "This is an eth loan");

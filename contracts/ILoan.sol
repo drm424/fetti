@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 interface ILoan{
     
+    function totalLoanedOut() external view returns(uint256 amount);
+
     function depositColateral(address receiver_, uint256 amount_) external returns(uint256 loanId);
 
     function addColateral(uint256 loanId_, uint256 amount) external returns(uint256 totalColateral);

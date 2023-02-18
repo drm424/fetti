@@ -20,8 +20,12 @@ describe("Test", function () {
     const token = await Token.deploy(usdc.address);
     await token.deployed();
 
+    const Loaner = await ethers.getContractFactory("Loaner");
+    const loaner = await Loaner.deploy(usdc.address);
+    await loaner.deployed();
+
     const Vault = await ethers.getContractFactory("Vault");
-    const vault = await Vault.deploy(usdc.address,token.address);
+    const vault = await Vault.deploy(usdc.address,token.address,loaner.address);
     await vault.deployed();
 
     await token.setVault(vault.address);
@@ -30,7 +34,7 @@ describe("Test", function () {
     const ethLoan = await EthLoan.deploy(vault.address, usdc.address);
     await ethLoan.deployed();
 
-    return {usdc, token, vault, ethLoan, owner, otherAccount};
+    return {usdc, token, vault, ethLoan, loaner, owner, otherAccount};
   }
 
   //await pause();
@@ -50,7 +54,7 @@ describe("Test", function () {
 
   });
 
-  describe("Deposit as a creditor", function () {
+  describe("FET mint", function () {
 
     it("Owner can send 10 USDC to vault", async function () {
       const { usdc, token, vault, owner} = await loadFixture(deployFixture);
@@ -59,7 +63,7 @@ describe("Test", function () {
       await usdc.connect(owner).approve(token.address, ownerBalance);
       await token.connect(owner).deposit(ownerBalance,owner.address);
       
-      expect(Number(await vault.totalAssets())).to.equal(Number(10**7));
+      expect(Number(await vault.totalUsdc())).to.equal(Number(10**7));
     });
 
     it("Owner gets 10 FET upon deposit", async function () {
@@ -67,14 +71,14 @@ describe("Test", function () {
       
       const ownerBalance = 10**7;
       await usdc.connect(owner).approve(token.address, ownerBalance);
-      await token.connect(owner).deposit(ownerBalance,owner.address);
+      await token.connect(owner).deposit(ownerBalance, owner.address);
       
       expect(Number(await token.balanceOf(owner.address))).to.equal(Number(10**7));
     });
 
   });
 
-  describe("Widthdraw as a creditor", function () {
+  describe("FET Burn", function () {
 
     it("Can widthdraw all FET", async function () {
       const { usdc, token, vault, owner} = await loadFixture(deployFixture);
@@ -103,7 +107,32 @@ describe("Test", function () {
 
   });
 
-  describe("Loan", function () {
+  describe("Loaner Init", function () {
+
+    it("Can send usdc from vault to loaner", async function () {      
+      const { usdc, token, vault, loaner, owner} = await loadFixture(deployFixture);
+      
+      const ownerBalance = 10**7;
+      await usdc.connect(owner).approve(token.address, ownerBalance);
+      await token.connect(owner).deposit(ownerBalance, owner.address);
+      
+      await vault.connect(owner).sendUsdcToLoaner(Number((10**7)/2));
+      expect(Number(await vault.totalUsdc())).to.equal(Number(10**7));
+      expect(Number(await vault.totalUsdcInVault())).to.equal(Number((10**7)/2));
+      expect(Number(await loaner.totalUsdc())).to.equal(Number((10**7)/2));
+    });
+
+    it("Can Add Pool & Change Its Max", async function () {      
+      const {ethLoan, loaner, owner} = await loadFixture(deployFixture);
+      await loaner.connect(owner).addPool(ethLoan.address,1,5);
+      expect(Number(await loaner.getPoolMax(1))).to.equal(Number(5));
+      await loaner.connect(owner).setPoolMax(1,10);
+      expect(Number(await loaner.getPoolMax(1))).to.equal(Number(10));
+    });
+  
+  });
+
+  describe("Loan Colateral", function () {
 
     it("Can deposit eth into the vault", async function () {
       const {ethLoan, otherAccount} = await loadFixture(deployFixture);
@@ -123,8 +152,7 @@ describe("Test", function () {
       expect(Number(await ethLoan.totalColateral(1))).to.equal(Number(2*(10**18)));
     });
 
-    
-    it("Close an outstanding loan", async function () {
+    it("Close an outstanding loan, with timelock", async function () {
       const {ethLoan, otherAccount} = await loadFixture(deployFixture);
       await ethLoan.connect(otherAccount).depositColateralEth({ value: ethers.utils.parseEther("1") });
       expect(Number(await ethLoan.balanceOf(otherAccount.address))).to.equal(Number(1));
@@ -136,8 +164,6 @@ describe("Test", function () {
       expect(await ethLoan.exists(1)).to.equal(false);
     });
     
-    
-
   });
   
 });

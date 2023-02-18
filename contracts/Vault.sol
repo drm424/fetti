@@ -6,22 +6,33 @@ import "../node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./Token.sol";
 import "./IVault.sol";
+import "./ILoaner.sol";
 
 
 contract Vault is IVault{
 
-    IERC20 private immutable _usdc;
-    IERC4626 private immutable _share;
-    address private immutable _gov;    
+    IERC20 private _usdc;
+    IERC4626 private _share;
+    ILoaner private _loaner;
+    address private _gov;    
 
-    constructor(address usdc_, address share_){
+    constructor(address usdc_, address share_, address loaner_){
         _usdc = IERC20(usdc_);
         _share = IERC4626(share_);
+        _loaner = ILoaner(loaner_);
         _gov = msg.sender;
     }
 
-    function totalAssets() external view override returns(uint256 assets){
-        return _usdc.balanceOf(address(this));
+    function sendUsdcToLoaner(uint256 amount_) external returns(uint256 amount){
+        require(msg.sender==_gov,"only ogv!!!");
+        require(totalUsdcInVault()>amount_,"Don't have enough usdc in vault!");
+        SafeERC20.safeTransfer(_usdc, address(_loaner), amount_);
+        return 0;
+    }
+
+    //total usdc in vault & loaned out 
+    function totalUsdc() external view returns(uint256 amount){
+        return _usdc.balanceOf(address(this)) + _loaner.totalUsdc();
     }
 
     function totalUsdcInVault() public view returns(uint256 assets){

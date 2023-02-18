@@ -36,7 +36,7 @@ contract Token is ERC20, IERC4626{
     }
 
     function totalAssets() public view override(IERC4626) returns (uint256 totalManagedAssets){
-        return _vault.totalAssets();
+        return _vault.totalUsdc();
     }
 
     function totalUsdcInVault() public view returns (uint256 totalManagedAssets){
@@ -188,6 +188,6 @@ contract Token is ERC20, IERC4626{
     }
 
     function getVaultAssets() internal view returns (uint256 assets){
-        return _vault.totalAssets();
+        return _vault.totalUsdc();
     }
 }
