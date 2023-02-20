@@ -13,7 +13,7 @@ interface ILoan{
 
     function widthdrawColateral(address receiver_, uint256 loanId_) external returns(uint256);
 
-    function borrow(uint256 loanId_, uint256 amount_, address sendTo_) external returns(uint256 amount);
+    function borrow(uint256 loanId_, uint256 amount_, address payable sendTo_) external returns(uint256 amount);
 
     function maxBorrow(uint256 loanId_, address sendTo_) external returns(uint256 amount);
 

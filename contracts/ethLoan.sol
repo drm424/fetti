@@ -12,6 +12,8 @@ contract ethLoan is ILoanEth, ERC721{
     event AddedColateral(uint256 tokenId, uint256 amount);
     event LoanClose(address receiver, uint256 tokenId, uint256 amount);
 
+    event SentLoan(uint256 tokenId, uint256 amount);
+
     struct Loan{
         uint256 id;
         uint256 depositedEth;
@@ -26,14 +28,26 @@ contract ethLoan is ILoanEth, ERC721{
 
     mapping(uint256=>Loan) private _outstandingLoans;
     uint256 private _count;
+    uint256 private _currLoanedOut;
     
+    address private _gov;
     IERC20 private immutable _usdc;
-    ILoaner private _ethPool;
+    ILoaner private _loaner;
+    uint256 private _loanerId;
+    address private _vault;
    
-    constructor(address ethPool_, address usdc_) ERC721("Fetti Eth Colateralized Loan", "FetEth") {
+    constructor(address loaner_, address usdc_, address vault_) ERC721("Fetti Eth Colateralized Loan", "FetEth") {
+        _gov = msg.sender;
         _usdc = IERC20(usdc_);
-        _ethPool = ILoaner(ethPool_);
+        _loaner = ILoaner(loaner_);
         _count = 0;
+        _vault = vault_;
+    }
+
+    function setLoanerId(uint256 poolId_) external returns(uint256 id){
+        require(msg.sender==_gov,"only gov!!!");
+        _loanerId = poolId_;
+        return _loanerId;
     }
 
     //eth doesn't have an address
@@ -94,6 +108,8 @@ contract ethLoan is ILoanEth, ERC721{
     //use the other stored loan info to take fees from the closure
     //remove loan information from mapping
     function widthdrawColateralEth(address payable receiver_, uint256 loanId_) external payable returns(uint256){
+        require(_exists(loanId_),"loanId must be a open loan");
+        require(_outstandingLoans[loanId_].borrowedUsdc==0,"Must repay your loan before removing colateral");
         require(_outstandingLoans[loanId_].unlockTime<block.timestamp,"Colateral is still locked");
         require(msg.sender==ownerOf(loanId_),"Must be the owner of the loan");
         uint256 amount = _outstandingLoans[loanId_].depositedEth;
@@ -109,8 +125,41 @@ contract ethLoan is ILoanEth, ERC721{
         return _outstandingLoans[loanId_].depositedEth;
     }
 
-    function borrow(uint256 loanId_, uint256 amount_, address sendTo_) external pure returns(uint256 amount){
-        return 0;
+    function borrow(uint256 loanId_, uint256 amount_, address payable sendTo_) external returns(uint256 amount){
+        require(_exists(loanId_),"Loan doesnt exist");
+        require(getNewHealth(loanId_, amount_)<(7*1e5), "Requesting too much usdc");
+        require(msg.sender==ownerOf(loanId_),"must be owner");
+        _currLoanedOut+=amount_;
+        _outstandingLoans[loanId_].borrowedUsdc+=amount_;
+        _loaner.sendLoan(sendTo_,_loanerId,amount_);
+        emit SentLoan(loanId_, amount_);
+        return amount_;
+    }
+
+    function totalBorrow(uint256 loanId_) public view returns(uint256){
+        require(_exists(loanId_),"loanId must be a open loan");
+        return _outstandingLoans[loanId_].borrowedUsdc;
+    }
+
+    //returns percentage with 4 decimals
+    function getCurrHealth(uint256 loanId_) public view returns(uint256){
+        uint256 healthFactor1e6 = (_outstandingLoans[loanId_].borrowedUsdc*1e18)/(currEthPrice()*_outstandingLoans[loanId_].depositedEth);
+        return healthFactor1e6;
+    }
+
+    //returns percentage with 4 decimals
+    function getNewHealth(uint256 loanId_, uint256 amount_) public view returns(uint256){
+        uint256 healthFactor1e6 = ((_outstandingLoans[loanId_].borrowedUsdc+amount_)*1e18)/(currEthPrice()*_outstandingLoans[loanId_].depositedEth);
+        return healthFactor1e6;
+    }
+
+    function repayLoan(uint256 loanId_, uint256 amount_) public returns(uint256){
+        require(_exists(loanId_),"loanId must be a open loan");
+        require((amount_>0)&&(amount_<=_outstandingLoans[loanId_].borrowedUsdc),"amount must be greater than 0 and less than your loaned out amount");
+        _usdc.transferFrom(msg.sender,_vault,amount_);
+        _currLoanedOut-=amount_;
+        _outstandingLoans[loanId_].borrowedUsdc-=amount_;
+        return _outstandingLoans[loanId_].borrowedUsdc;
     }
 
     function maxBorrow(uint256 loanId_, address sendTo_) external pure returns(uint256 amount){
@@ -123,6 +172,11 @@ contract ethLoan is ILoanEth, ERC721{
 
     function poke(address sendRewards_) external pure returns(uint256 amount){
         return 0;
+    }
+
+    //eventually call chainlink price oracle here
+    function currEthPrice() public pure returns(uint256 price){
+        return 1000;
     }
 
     //purely for testing

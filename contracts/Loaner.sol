@@ -4,8 +4,12 @@ import "./IVault.sol";
 import "./ILoaner.sol";
 import "./ILoan.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../node_modules/@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
 
 contract Loaner is ILoaner{
+
+    event SentLoan(uint256 poolId, address borrower, uint256 amount);
 
     address private _gov;
 
@@ -19,7 +23,7 @@ contract Loaner is ILoaner{
     uint256[] private _poolIds;
     mapping(uint256=>Pool) private _pools;
 
-
+    //may not need
     modifier onlyPool{
         uint256 cond = 0;
         for(uint256 i = 0;i<_poolIds.length;i++){
@@ -37,6 +41,7 @@ contract Loaner is ILoaner{
         _usdc = IERC20(usdc_);
     }
 
+    //add usdc in loaner and loaned out amount of all pools
     //add usdc loaned out by iterating through the mapping of pools and calling totalLoaned()
     function totalUsdc() public view returns(uint256 amount){
         return _usdc.balanceOf(address(this));
@@ -59,12 +64,20 @@ contract Loaner is ILoaner{
         return _pools[poolId_]._maximumBorrow;
     }
 
-    //get rid of modifier and check if msg.sender == poolId address (may have to check if pool exiss before this)
-    function sendLoan(address payable borrower_, uint256 poolId_, uint256 amount_) external onlyPool returns(uint256 amount){
-        require((amount_+));
-        return 0;
+    //not sure what happens if pool doesn't exist
+    function sendLoan(address payable borrower_, uint256 poolId_, uint256 amount_) external returns(uint256 amount){
+        require(msg.sender==_pools[poolId_]._poolAddress,"must be the pool!!");
+        require(totalUsdcInLoaner()>amount_,"Don't have enough usdc in loaner!");
+        SafeERC20.safeTransfer(_usdc, borrower_, amount_);
+        emit SentLoan(poolId_, borrower_, amount_);
+        return amount_;
     }
 
+    function totalUsdcInLoaner() public view returns(uint256 assets){
+        return _usdc.balanceOf(address(this));
+    }
+
+    //iterate through pools and add total loans outstanding
     function totalLoanedOut() external returns(uint256 amount){
         return 0;
     }

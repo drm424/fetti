@@ -8,7 +8,7 @@ interface ILoaner{
     
     function setPoolMax(uint256 poolId_, uint256 newMax_) external returns(uint256 maximum);
 
-    function sendLoan(address payable borrower_, uint256 amount_) external returns(uint256 amount);
+    function sendLoan(address payable borrower_, uint256 poolId_, uint256 amount_) external returns(uint256 amount);
 
     function totalLoanedOut() external returns(uint256 amount);
 }

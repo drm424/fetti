@@ -31,8 +31,11 @@ describe("Test", function () {
     await token.setVault(vault.address);
 
     const EthLoan = await ethers.getContractFactory("ethLoan");
-    const ethLoan = await EthLoan.deploy(vault.address, usdc.address);
+    const ethLoan = await EthLoan.deploy(loaner.address, usdc.address,vault.address);
     await ethLoan.deployed();
+
+    await loaner.connect(owner).addPool(ethLoan.address, 1,((10**7)/2));
+    await ethLoan.connect(owner).setLoanerId(1);
 
     return {usdc, token, vault, ethLoan, loaner, owner, otherAccount};
   }
@@ -107,7 +110,7 @@ describe("Test", function () {
 
   });
 
-  describe("Loaner Init", function () {
+  describe("Loaner & ethLoan Init", function () {
 
     it("Can send usdc from vault to loaner", async function () {      
       const { usdc, token, vault, loaner, owner} = await loadFixture(deployFixture);
@@ -152,7 +155,7 @@ describe("Test", function () {
       expect(Number(await ethLoan.totalColateral(1))).to.equal(Number(2*(10**18)));
     });
 
-    it("Close an outstanding loan, with timelock", async function () {
+    it("Can close an outstanding loan, with timelock", async function () {
       const {ethLoan, otherAccount} = await loadFixture(deployFixture);
       await ethLoan.connect(otherAccount).depositColateralEth({ value: ethers.utils.parseEther("1") });
       expect(Number(await ethLoan.balanceOf(otherAccount.address))).to.equal(Number(1));
@@ -164,6 +167,27 @@ describe("Test", function () {
       expect(await ethLoan.exists(1)).to.equal(false);
     });
     
+  });
+
+  describe("Borrowing USDC", function () {
+
+    it("Can Borrow USDC", async function () {      
+      const {usdc, token, vault, ethLoan, loaner, owner, otherAccount} = await loadFixture(deployFixture);
+      const balance = 10**7;
+      await usdc.connect(owner).approve(token.address, balance);
+      await token.connect(owner).deposit(balance, owner.address);
+      
+      
+      await vault.connect(owner).sendUsdcToLoaner(Number((10**7)/2));
+
+      
+      await ethLoan.connect(otherAccount).depositColateralEth({ value: ethers.utils.parseEther("1") });
+      await ethLoan.connect(otherAccount).borrow(1, ((5*(10**6))-1), '0x0000000000000000000000000000000000000007');
+
+      expect(Number(await usdc.balanceOf('0x0000000000000000000000000000000000000007'))).to.equal(Number((5*(10**6))-1));
+      expect(Number(await ethLoan.getCurrHealth(1))).to.equal(Number(4999));
+    });
+  
   });
   
 });
