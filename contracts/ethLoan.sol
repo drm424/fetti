@@ -50,18 +50,9 @@ contract ethLoan is ILoanEth, ERC721{
         return _loanerId;
     }
 
-    //eth doesn't have an address
-    function suppliedAsset() external pure returns(address){
-        return address(0);
-    }
-
-    function borrowedAsset() external view returns(address){
-        return address(_usdc);
-    }
-
     //add global var and track loaned out amounts with each borrow and repayment
     function totalLoanedOut() external view returns(uint256 amount){
-        return 0;
+        return _currLoanedOut;
     }
 
 
@@ -109,13 +100,13 @@ contract ethLoan is ILoanEth, ERC721{
     //remove loan information from mapping
     function widthdrawColateralEth(address payable receiver_, uint256 loanId_) external payable returns(uint256){
         require(_exists(loanId_),"loanId must be a open loan");
-        require(_outstandingLoans[loanId_].borrowedUsdc==0,"Must repay your loan before removing colateral");
         require(_outstandingLoans[loanId_].unlockTime<block.timestamp,"Colateral is still locked");
+        require(_outstandingLoans[loanId_].borrowedUsdc==0,"Must repay entire loan before removing colateral");
         require(msg.sender==ownerOf(loanId_),"Must be the owner of the loan");
-        uint256 amount = _outstandingLoans[loanId_].depositedEth;
+        uint256 amount = _outstandingLoans[loanId_].depositedEth + 0;
         delete _outstandingLoans[loanId_];
         _burn(loanId_);
-        require(receiver_.send(amount), "transation failed");   
+        receiver_.transfer(amount);   
         emit LoanClose(receiver_, loanId_, amount);     
         return amount;
     }
@@ -129,6 +120,7 @@ contract ethLoan is ILoanEth, ERC721{
         require(_exists(loanId_),"Loan doesnt exist");
         require(getNewHealth(loanId_, amount_)<(7*1e5), "Requesting too much usdc");
         require(msg.sender==ownerOf(loanId_),"must be owner");
+        require(_loaner.poolFreeUsdc(1)!=0,"loaner does not have enough usdc to cover your amount");
         _currLoanedOut+=amount_;
         _outstandingLoans[loanId_].borrowedUsdc+=amount_;
         _loaner.sendLoan(sendTo_,_loanerId,amount_);
@@ -153,6 +145,7 @@ contract ethLoan is ILoanEth, ERC721{
         return healthFactor1e6;
     }
 
+    //not exactly sure of the correct order of these transactions
     function repayLoan(uint256 loanId_, uint256 amount_) public returns(uint256){
         require(_exists(loanId_),"loanId must be a open loan");
         require((amount_>0)&&(amount_<=_outstandingLoans[loanId_].borrowedUsdc),"amount must be greater than 0 and less than your loaned out amount");
@@ -163,10 +156,6 @@ contract ethLoan is ILoanEth, ERC721{
     }
 
     function maxBorrow(uint256 loanId_, address sendTo_) external pure returns(uint256 amount){
-        return 0;
-    }
-
-    function liquidityRatio(uint256 loanId_) external pure returns(uint256 amount){
         return 0;
     }
 

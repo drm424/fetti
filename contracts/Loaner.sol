@@ -14,7 +14,7 @@ contract Loaner is ILoaner{
     address private _gov;
 
     struct Pool{
-        address _poolAddress;
+        ILoan _pool;
         uint256 _poolId;
         uint256 _maximumBorrow;
     }
@@ -22,19 +22,6 @@ contract Loaner is ILoaner{
     IERC20 private _usdc;
     uint256[] private _poolIds;
     mapping(uint256=>Pool) private _pools;
-
-    //may not need
-    modifier onlyPool{
-        uint256 cond = 0;
-        for(uint256 i = 0;i<_poolIds.length;i++){
-            if(msg.sender==_pools[_poolIds[i]]._poolAddress){
-                cond = 1;
-                break;
-            }
-        }
-        require(cond!=0,"msg.sender must be a pool");
-        _;
-    }
 
     constructor(address usdc_){
         _gov = msg.sender;
@@ -49,7 +36,7 @@ contract Loaner is ILoaner{
     
     function addPool(address newPool_, uint256 poolId_, uint256 maxBorrow_) external returns(uint256 poolId){
         require(msg.sender==_gov,"Only gov!!!");
-        _pools[poolId_] = Pool(newPool_,poolId_,maxBorrow_);
+        _pools[poolId_] = Pool(ILoan(newPool_),poolId_,maxBorrow_);
         _poolIds.push(poolId_);
         return poolId_;
     }
@@ -66,8 +53,9 @@ contract Loaner is ILoaner{
 
     //not sure what happens if pool doesn't exist
     function sendLoan(address payable borrower_, uint256 poolId_, uint256 amount_) external returns(uint256 amount){
-        require(msg.sender==_pools[poolId_]._poolAddress,"must be the pool!!");
-        require(totalUsdcInLoaner()>amount_,"Don't have enough usdc in loaner!");
+        require(_pools[poolId_]._poolId!=0,"must exist");
+        require(msg.sender==address(_pools[poolId_]._pool),"must be the pool!!");
+        require(totalUsdcInLoaner()>=amount_,"Don't have enough usdc in loaner!");
         SafeERC20.safeTransfer(_usdc, borrower_, amount_);
         emit SentLoan(poolId_, borrower_, amount_);
         return amount_;
@@ -77,10 +65,14 @@ contract Loaner is ILoaner{
         return _usdc.balanceOf(address(this));
     }
 
+    function poolFreeUsdc(uint256 poolId_) public returns(uint256){
+        require(_pools[poolId_]._poolId!=0,"must exist");
+        return _pools[poolId_]._maximumBorrow-_pools[poolId_]._pool.totalLoanedOut();
+
+    }
+
     //iterate through pools and add total loans outstanding
     function totalLoanedOut() external returns(uint256 amount){
         return 0;
     }
-
-
 }

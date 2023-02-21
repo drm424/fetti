@@ -11,4 +11,6 @@ interface ILoaner{
     function sendLoan(address payable borrower_, uint256 poolId_, uint256 amount_) external returns(uint256 amount);
 
     function totalLoanedOut() external returns(uint256 amount);
+
+    function poolFreeUsdc(uint256 poolId_) external returns(uint256);
 }

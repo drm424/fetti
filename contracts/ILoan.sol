@@ -17,7 +17,5 @@ interface ILoan{
 
     function maxBorrow(uint256 loanId_, address sendTo_) external returns(uint256 amount);
 
-    function liquidityRatio(uint256 loanId_) external returns(uint256 amount);
-
     function poke(address sendRewards_) external returns(uint256 amount);
 }
