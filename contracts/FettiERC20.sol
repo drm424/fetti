@@ -8,7 +8,7 @@ import "../node_modules/@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol"
 import "./IVault.sol";
 import "./Vault.sol";
 
-contract Token is ERC20, IERC4626{
+contract FettiERC20 is ERC20, IERC4626{
     using Math for uint256;
 
     address private _gov;
@@ -20,21 +20,23 @@ contract Token is ERC20, IERC4626{
         _usdc = usdc_;
     }
 
-    //erc20 functionality
-    function decimals() public pure override(ERC20, IERC20Metadata) returns (uint8) {
-        return 6;
-    }
-
+    //set vault after deployment
     function setVault(address vault_)external returns(IVault vault){
         require(_gov==msg.sender, "Must be the gov!!");
         _vault = Vault(vault_);
         return _vault;
     }
 
+    function decimals() public pure override(ERC20, IERC20Metadata) returns (uint8) {
+        return 6;
+    }
+
     function asset() external view override returns (address assetTokenAddress){
         return address(_usdc);
     }
 
+    //needs to call call vault totalUSDCInVault and loaner totalAssets() which returns usdc in the loaner and the total
+    //loaned out to get full scope of fetti backing
     function totalAssets() public view override(IERC4626) returns (uint256 totalManagedAssets){
         return _vault.totalUsdc();
     }

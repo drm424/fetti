@@ -16,8 +16,9 @@ describe("Test", function () {
     const usdc = await USDC.deploy();
     await usdc.deployed();
 
-    const Token = await ethers.getContractFactory("Token");
-    const token = await Token.deploy(usdc.address);
+    //change all variable names eventually
+    const FettiERC20 = await ethers.getContractFactory("FettiERC20");
+    const token = await FettiERC20.deploy(usdc.address);
     await token.deployed();
 
     const Loaner = await ethers.getContractFactory("Loaner");
@@ -30,8 +31,9 @@ describe("Test", function () {
 
     await token.setVault(vault.address);
 
-    const EthLoan = await ethers.getContractFactory("ethLoan");
-    const ethLoan = await EthLoan.deploy(loaner.address, usdc.address,vault.address);
+    //change all variable names eventually
+    const EthPool = await ethers.getContractFactory("ethPool");
+    const ethLoan = await EthPool.deploy(loaner.address, usdc.address,vault.address);
     await ethLoan.deployed();
 
     await loaner.connect(owner).addPool(ethLoan.address, 1,((10**7)/2));
@@ -236,6 +238,7 @@ describe("Test", function () {
 
       await pause();
       
+      //only works for some addresses for some reason
       await ethLoan.connect(otherAccount).widthdrawColateralEth('0x0000000000000000000000000000000000000004',1);  
       expect(Number(await usdc.balanceOf(vault.address))).to.equal(Number(10**7));
       expect(Number(await ethers.provider.getBalance('0x0000000000000000000000000000000000000004'))).to.equal(Number(2*(10**18)));

@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "../node_modules/@openzeppelin/contracts/interfaces/IERC4626.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "./Token.sol";
+import "./FettiERC20.sol";
 import "./IVault.sol";
 import "./ILoaner.sol";
 
@@ -31,6 +31,7 @@ contract Vault is IVault{
     }
 
     //total usdc in vault & loaned out 
+    //calls loaner total usdc that adds loaned out and usdc held
     function totalUsdc() external view returns(uint256 amount){
         return _usdc.balanceOf(address(this)) + _loaner.totalUsdc();
     }

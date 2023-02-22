@@ -2,7 +2,7 @@ pragma solidity ^0.8.0;
 
 import "./IVault.sol";
 import "./ILoaner.sol";
-import "./ILoan.sol";
+import "./IPool.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -14,7 +14,7 @@ contract Loaner is ILoaner{
     address private _gov;
 
     struct Pool{
-        ILoan _pool;
+        IPool _pool;
         uint256 _poolId;
         uint256 _maximumBorrow;
     }
@@ -36,7 +36,7 @@ contract Loaner is ILoaner{
     
     function addPool(address newPool_, uint256 poolId_, uint256 maxBorrow_) external returns(uint256 poolId){
         require(msg.sender==_gov,"Only gov!!!");
-        _pools[poolId_] = Pool(ILoan(newPool_),poolId_,maxBorrow_);
+        _pools[poolId_] = Pool(IPool(newPool_),poolId_,maxBorrow_);
         _poolIds.push(poolId_);
         return poolId_;
     }

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./ILoanEth.sol";
+import "./IPool.sol";
 import "./ILoaner.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract ethLoan is ILoanEth, ERC721{
+contract ethPool is IPool, ERC721{
 
     event LoanOpen(address mintor, uint256 tokenId, uint256 amount);
     event AddedColateral(uint256 tokenId, uint256 amount);
