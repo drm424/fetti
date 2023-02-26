@@ -36,7 +36,7 @@ describe("Test", function () {
     const ethLoan = await EthPool.deploy(loaner.address, usdc.address,vault.address);
     await ethLoan.deployed();
 
-    await loaner.connect(owner).addPool(ethLoan.address, 1,((10**7)/2));
+    await loaner.connect(owner).addPool(ethLoan.address, 1,(10**12));
     await ethLoan.connect(owner).setLoanerId(1);
 
     return {usdc, token, vault, ethLoan, loaner, owner, otherAccount};
@@ -129,8 +129,7 @@ describe("Test", function () {
 
     it("Can Add Pool & Change Its Max", async function () {      
       const {ethLoan, loaner, owner} = await loadFixture(deployFixture);
-      await loaner.connect(owner).addPool(ethLoan.address,1,5);
-      expect(Number(await loaner.getPoolMax(1))).to.equal(Number(5));
+      expect(Number(await loaner.getPoolMax(1))).to.equal(Number((10**12)));
       await loaner.connect(owner).setPoolMax(1,10);
       expect(Number(await loaner.getPoolMax(1))).to.equal(Number(10));
     });
@@ -209,7 +208,7 @@ describe("Test", function () {
   describe("All Basic Loan functionalities", function () {
 
     it("Can mint/burn fet, send usdc to loaner, deposit/add eth, borrow usdc, repay usdc, close loan", async function () {      
-      const {usdc, token, vault, ethLoan, owner, otherAccount} = await loadFixture(deployFixture);
+      const {usdc, token, vault, ethLoan, loaner, owner, otherAccount} = await loadFixture(deployFixture);
       
       const ownerBalance = 10**7;
       await usdc.connect(owner).approve(token.address, ownerBalance);
@@ -227,23 +226,33 @@ describe("Test", function () {
 
       expect(Number(await ethLoan.totalColateral(1))).to.equal(Number(2*(10**18)));
 
-      await ethLoan.connect(otherAccount).borrow(1, (5*(10**6)), otherAccount.address);
+      await ethLoan.connect(otherAccount).borrow(1, 1000000, otherAccount.address);
+      
+      expect(Number(await token.totalAssets())).to.equal(Number(10**7));
+      expect(Number(await loaner.poolFreeUsdc(1))).to.equal(Number(999999000000));
+      expect(Number(await loaner.getPoolLoanAmount(1))).to.equal(Number(1000000));
+      expect(Number(await loaner.totalLoanedOut())).to.equal(Number(1000000));
+      expect(Number(await loaner.totalUsdc())).to.equal(Number((10**7)/2));
+      expect(Number(await usdc.balanceOf(otherAccount.address))).to.equal(Number(1000000));
+      expect(Number(await ethLoan.getCurrHealth(1))).to.equal(Number(500));
 
-      expect(Number(await usdc.balanceOf(otherAccount.address))).to.equal(Number(5*(10**6)));
-      expect(Number(await ethLoan.getCurrHealth(1))).to.equal(Number(2500));
 
-
-      await usdc.connect(otherAccount).approve(ethLoan.address,(5*(10**6)));
-      await ethLoan.connect(otherAccount).repayLoan(1,(5*(10**6)));
+      await usdc.connect(otherAccount).approve(ethLoan.address,1000000);
+      await ethLoan.connect(otherAccount).repayLoan(1,1000000);
 
       await pause();
       
       //only works for some addresses for some reason
       await ethLoan.connect(otherAccount).widthdrawColateralEth('0x0000000000000000000000000000000000000004',1);  
-      expect(Number(await usdc.balanceOf(vault.address))).to.equal(Number(10**7));
+      expect(Number(await usdc.balanceOf(vault.address))).to.equal(Number(6*(10**6)));
+      expect(Number(await loaner.totalUsdc())).to.equal(4*(10**6));
       expect(Number(await ethers.provider.getBalance('0x0000000000000000000000000000000000000004'))).to.equal(Number(2*(10**18)));
       expect(await ethLoan.exists(1)).to.equal(false);
 
+      await token.connect(owner).redeem((6*(10**6)),owner.address,owner.address);
+      
+      expect(Number(await token.balanceOf(owner.address))).to.equal(Number(4*(10**6)));
+      expect(Number(await usdc.balanceOf(owner.address))).to.equal(Number(6*(10**6)));
     });
   });
   

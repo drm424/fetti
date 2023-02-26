@@ -35,8 +35,6 @@ contract FettiERC20 is ERC20, IERC4626{
         return address(_usdc);
     }
 
-    //needs to call call vault totalUSDCInVault and loaner totalAssets() which returns usdc in the loaner and the total
-    //loaned out to get full scope of fetti backing
     function totalAssets() public view override(IERC4626) returns (uint256 totalManagedAssets){
         return _vault.totalUsdc();
     }
@@ -65,26 +63,22 @@ contract FettiERC20 is ERC20, IERC4626{
         return type(uint256).max;
     }
 
-    //should be the same with previous changes
-    //return what they would get - vault fee
     function maxWithdraw(address owner) public view override returns (uint256 maxAssets){
         uint256 vaultLiquidity = _vault.totalUsdcInVault();
         uint256 addressBalance = _convertToAssets(balanceOf(owner), Math.Rounding.Down);
         if(vaultLiquidity>addressBalance){
             return addressBalance;
         }
-        return vaultLiquidity;
-        
+        return vaultLiquidity;  
     }
 
-    //should be the same
     function maxRedeem(address owner) public view override returns (uint256 maxShares){
         uint256 vaultLiquidity = _convertToShares(_vault.totalUsdcInVault(), Math.Rounding.Up);
         uint256 addressBalance = balanceOf(owner);
         if(vaultLiquidity>addressBalance){
-            return addressBalance;
+            return _convertToShares(addressBalance, Math.Rounding.Down);
         }
-        return vaultLiquidity;
+        return _convertToShares(vaultLiquidity, Math.Rounding.Down);
     }
 
     //should be the same
@@ -130,10 +124,8 @@ contract FettiERC20 is ERC20, IERC4626{
 
     function withdraw(uint256 assets, address receiver, address owner) external override returns (uint256 shares){
         require(assets <= maxWithdraw(owner), "ERC4626: withdraw more than max");
-
         uint256 shares__ = previewWithdraw(assets);
         _withdraw(_msgSender(), receiver, owner, assets, shares__);
-
         return shares;
     }
 
