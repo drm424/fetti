@@ -50,11 +50,11 @@ describe("Test", function () {
 
   describe("Deployment of USDC", function () {
 
-    it("Mints 10 USDC to msg.sender upon deployment", async function () {
+    it("Mints 10 dai to msg.sender upon deployment", async function () {
       const { usdc, owner} = await loadFixture(deployFixture);
       const ownerBalance = await usdc.balanceOf(owner.address);
       
-      expect(Number(ownerBalance)).to.equal(Number(10**7));
+      expect(Number(ownerBalance)).to.equal(Number(10**19));
     });
 
   });
@@ -94,7 +94,7 @@ describe("Test", function () {
       await token.connect(owner).redeem(ownerBalance,owner.address,owner.address);
       
       expect(Number(await token.balanceOf(owner.address))).to.equal(Number(0));
-      expect(Number(await usdc.balanceOf(owner.address))).to.equal(Number(10**7));
+      expect(Number(await usdc.balanceOf(owner.address))).to.equal(Number(10**19));
     });
 
     it("Can widthdraw half of FET", async function () {
@@ -107,7 +107,7 @@ describe("Test", function () {
       
       expect(Number(await token.maxWithdraw(owner.address))).to.equal(Number((10**6)*5));
       expect(Number(await token.balanceOf(owner.address))).to.equal(Number((10**6)*5));
-      expect(Number(await usdc.balanceOf(owner.address))).to.equal(Number((10**6)*5));
+      expect(Number(await usdc.balanceOf(owner.address))).to.equal(Number((10**19)-((10**6)*5)));
     });
 
   });
@@ -252,7 +252,7 @@ describe("Test", function () {
       await token.connect(owner).redeem((6*(10**6)),owner.address,owner.address);
       
       expect(Number(await token.balanceOf(owner.address))).to.equal(Number(4*(10**6)));
-      expect(Number(await usdc.balanceOf(owner.address))).to.equal(Number(6*(10**6)));
+      expect(Number(await usdc.balanceOf(owner.address))).to.equal(Number((10**19)-(4*(10**6))));
     });
   });
   

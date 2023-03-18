@@ -28,7 +28,7 @@ contract FettiERC20 is ERC20, IERC4626{
     }
 
     function decimals() public pure override(ERC20, IERC20Metadata) returns (uint8) {
-        return 6;
+        return 18;
     }
 
     function asset() external view override returns (address assetTokenAddress){
