@@ -118,12 +118,12 @@ contract gnsPool is IPool, ERC721{
         uint256 amount = _outstandingLoans[loanId_].depositedGns + 0;
         uint256 stakedAmount = _outstandingLoans[loanId_].stakedGns;
         uint256 rewards = (_daiRatio-_outstandingLoans[loanId_].daiRatioPayout)*stakedAmount;
-        unstake(stakedAmount);
+        //unstake(stakedAmount);
         _totalColateral-=amount;
         _closeLoan(loanId_);
         _gns.transfer(receiver_, amount);   
         emit LoanClose(receiver_, loanId_, amount);  
-        splitRewards(rewards, msg.sender);   
+        //splitRewards(rewards, msg.sender);   
         return amount;
     }
 

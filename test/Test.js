@@ -307,7 +307,9 @@ describe("Test", function () {
       expect(Number(await gnsLoan.totalColateral(1))).to.equal(Number(200));
       expect(Number(await gnsLoan.getDaiRatio(1))).to.equal(Number(0));
       expect(Number(await gnsLoan.getStakedGns(1))).to.equal(Number(50));
-
+      await gnsLoan.connect(owner).widthdrawColateral(owner.address, 1);
+      expect(Number(await gns.balanceOf(owner.address))).to.equal(10**19);
+      expect(Number(await gnsLoan.balanceOf(owner.address))).to.equal(0);
     });
 
     
