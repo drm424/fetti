@@ -33,13 +33,21 @@ describe("Test", function () {
 
     //change all variable names eventually
     const EthPool = await ethers.getContractFactory("ethPool");
-    const ethLoan = await EthPool.deploy(loaner.address, usdc.address,vault.address);
+    const ethLoan = await EthPool.deploy(loaner.address, usdc.address, vault.address);
     await ethLoan.deployed();
 
     await loaner.connect(owner).addPool(ethLoan.address, 1,(10**12));
     await ethLoan.connect(owner).setLoanerId(1);
 
-    return {usdc, token, vault, ethLoan, loaner, owner, otherAccount};
+    const GNS = await ethers.getContractFactory("gns");
+    const gns = await GNS.deploy();
+    await gns.deployed();
+
+    const GnsLoan = await ethers.getContractFactory("gnsPool");
+    const gnsLoan = await GnsLoan.deploy(loaner.address, usdc.address, gns.address, vault.address);
+    await gnsLoan.deployed();
+
+    return {usdc, token, vault, ethLoan, loaner, gns, gnsLoan, owner, otherAccount};
   }
 
   //await pause();
@@ -255,5 +263,60 @@ describe("Test", function () {
       expect(Number(await usdc.balanceOf(owner.address))).to.equal(Number((10**19)-(4*(10**6))));
     });
   });
+
+  describe("ERC20 Colateral Loan functionalities", function () {
+
+    it("GNS inits", async function () {      
+      const {gns, owner} = await loadFixture(deployFixture);
+      expect(Number(await gns.balanceOf(owner.address))).to.equal(Number(10**19));
+    });
+
+    it("Init colateral", async function () {      
+      const {gns, gnsLoan, owner} = await loadFixture(deployFixture);
+      await gns.connect(owner).approve(gnsLoan.address,50);
+      await gnsLoan.connect(owner).depositColateral(owner.address, 50);
+      expect(Number(await gnsLoan.balanceOf(owner.address))).to.equal(Number(1));
+      expect(Number(await gnsLoan.totalColateral(1))).to.equal(Number(50));
+    });
+
+    it("Add colateral", async function () {      
+      const {gns, gnsLoan, owner} = await loadFixture(deployFixture);
+      await gns.connect(owner).approve(gnsLoan.address,50);
+      await gnsLoan.connect(owner).depositColateral(owner.address, 50);
+      expect(Number(await gnsLoan.balanceOf(owner.address))).to.equal(Number(1));
+      expect(Number(await gnsLoan.totalColateral(1))).to.equal(Number(50));
+      await gnsLoan.changeDaiRatio(Number(10**7));
+      await gns.connect(owner).approve(gnsLoan.address,150);
+      await gnsLoan.connect(owner).addColateral(1, 150);
+      expect(Number(await gnsLoan.totalColateral(1))).to.equal(Number(200));
+      expect(Number(await gnsLoan.getDaiRatio(1))).to.equal(Number(0));
+      expect(Number(await gnsLoan.getStakedGns(1))).to.equal(Number(50));
+    });
+
+
+    //add widthdrawls testing and expectations
+    it("Widthdraw colateral", async function () {      
+      const {gns, gnsLoan, owner} = await loadFixture(deployFixture);
+      await gns.connect(owner).approve(gnsLoan.address,50);
+      await gnsLoan.connect(owner).depositColateral(owner.address, 50);
+      expect(Number(await gnsLoan.balanceOf(owner.address))).to.equal(Number(1));
+      expect(Number(await gnsLoan.totalColateral(1))).to.equal(Number(50));
+      await gnsLoan.changeDaiRatio(Number(10**7));
+      await gns.connect(owner).approve(gnsLoan.address,150);
+      await gnsLoan.connect(owner).addColateral(1, 150);
+      expect(Number(await gnsLoan.totalColateral(1))).to.equal(Number(200));
+      expect(Number(await gnsLoan.getDaiRatio(1))).to.equal(Number(0));
+      expect(Number(await gnsLoan.getStakedGns(1))).to.equal(Number(50));
+
+    });
+
+    
+
+  
+
+
+
+  });
+
   
 });
