@@ -163,10 +163,12 @@ contract gnsPool is IPool, ERC721{
         return _outstandingLoans[loanId_].borrowedUsdc;
     }
  
+    //dont use existing health functions, needs deposited gns not staked fns for liqs
     function liquidate(uint256 loanId_) external{
          
     }
 
+    //dont use existing health functions, needs deposited gns not staked fns for liqs
     function close(uint256 loanId_) external{
 
     }
@@ -181,15 +183,19 @@ contract gnsPool is IPool, ERC721{
         return _outstandingLoans[loanId_].borrowedUsdc;
     }
 
-    //returns percentage with 4 decimals
+    //returns percentage with 6 decimals
+    //***USES STAKED GNS TO FIND HEALTH***
+    //**DON"T USE FOR LIQUIDATIONS ONLY BORROWING***
     function getCurrHealth(uint256 loanId_) public view returns(uint256){
-        uint256 healthFactor1e6 = (_outstandingLoans[loanId_].borrowedUsdc)/(currGnsPrice()*_outstandingLoans[loanId_].depositedGns);
+        uint256 healthFactor1e6 = (_outstandingLoans[loanId_].borrowedUsdc)/(currGnsPrice()*_outstandingLoans[loanId_].stakedGns);
         return healthFactor1e6;
     }
 
     //returns percentage with 6 decimals
+    //***USES STAKED GNS TO FIND HEALTH***
+    //**DON"T USE FOR LIQUIDATIONS ONLY BORROWING***
     function getNewHealth(uint256 loanId_, uint256 amount_) public view returns(uint256){
-        uint256 healthFactor1e6 = ((_outstandingLoans[loanId_].borrowedUsdc+amount_))/(currGnsPrice()*_outstandingLoans[loanId_].depositedGns);
+        uint256 healthFactor1e6 = ((_outstandingLoans[loanId_].borrowedUsdc+amount_))/(currGnsPrice()*_outstandingLoans[loanId_].stakedGns);
         return healthFactor1e6;
     }
 
