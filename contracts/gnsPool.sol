@@ -49,6 +49,9 @@ contract gnsPool is IPool, ERC721{
     uint256 private _borrowerSplit;
     uint256 private _lenderSplit;
     uint256 private _projectSplit;
+
+    //for testing only delete upon launch
+    uint256 private _gnsPrice;
    
     constructor(address loaner_, address usdc_, address gns_, address vault_) ERC721("Fetti GNS Colateralized Loan", "FetGns") {
         _gov = msg.sender;
@@ -63,6 +66,9 @@ contract gnsPool is IPool, ERC721{
         _borrowerSplit = 20;
         _lenderSplit = 70;
         _projectSplit = 10;
+
+        //for testing only delete upon launch
+        _gnsPrice=7000000;
     }
 
     function setLoanerId(uint256 poolId_) external returns(uint256){
@@ -85,7 +91,7 @@ contract gnsPool is IPool, ERC721{
         uint256 unlockTime = block.timestamp + 1;
         _gns.transferFrom(msg.sender, address(this), amount_);
         //stake(amount_);
-        _outstandingLoans[_count] = Loan(_count,_daiRatio,amount_,amount_,0,unlockTime,70,80);
+        _outstandingLoans[_count] = Loan(_count,_daiRatio,amount_,amount_,0,unlockTime,(5*1e17),(6*1e17));
         _safeMint(receiver_, _count);
         _totalColateral+=amount_;
         emit LoanOpen(msg.sender,_count,amount_);
@@ -165,7 +171,10 @@ contract gnsPool is IPool, ERC721{
  
     //dont use existing health functions, needs deposited gns not staked fns for liqs
     function liquidate(uint256 loanId_) external{
-         
+        require(_outstandingLoans[loanId_].maxHealthFactor<getCurrHealth(loanId_));
+        //need to make sure the amount sent to liquidate put the health factor in the range .3275-.4275
+        //take the health factor formula and solve for amount to send
+        //will be very hard
     }
 
     //dont use existing health functions, needs deposited gns not staked fns for liqs
@@ -183,25 +192,42 @@ contract gnsPool is IPool, ERC721{
         return _outstandingLoans[loanId_].borrowedUsdc;
     }
 
-    //returns percentage with 6 decimals
-    //***USES STAKED GNS TO FIND HEALTH***
+    //1e18 represents 100% health factor
     //**DON"T USE FOR LIQUIDATIONS ONLY BORROWING***
     function getCurrHealth(uint256 loanId_) public view returns(uint256){
-        uint256 healthFactor1e6 = (_outstandingLoans[loanId_].borrowedUsdc)/(currGnsPrice()*_outstandingLoans[loanId_].stakedGns);
-        return healthFactor1e6;
+        uint256 borrowedAmountShifted = _outstandingLoans[loanId_].borrowedUsdc * 1e18;
+        uint256 collateralValueShifted = _outstandingLoans[loanId_].stakedGns * currGnsPrice();
+        uint256 healthFactorShifted = (borrowedAmountShifted * 1e6) / collateralValueShifted;
+        return healthFactorShifted;
     }
 
-    //returns percentage with 6 decimals
+    //returns decimal value with 18 decimals, percentage with 16 decimals
     //***USES STAKED GNS TO FIND HEALTH***
     //**DON"T USE FOR LIQUIDATIONS ONLY BORROWING***
     function getNewHealth(uint256 loanId_, uint256 amount_) public view returns(uint256){
-        uint256 healthFactor1e6 = ((_outstandingLoans[loanId_].borrowedUsdc+amount_))/(currGnsPrice()*_outstandingLoans[loanId_].stakedGns);
-        return healthFactor1e6;
+        uint256 healthFactorShifted = ((_outstandingLoans[loanId_].borrowedUsdc+amount_) * 1e18) * 1e6 / (_outstandingLoans[loanId_].stakedGns * currGnsPrice());
+        return healthFactorShifted;
+    }
+
+    function getNewLiqHealth(uint256 loanId_, uint256 amount_) public view returns(uint256){
+        uint256 healthFactorShifted = ((_outstandingLoans[loanId_].borrowedUsdc-amount_) * 1e18) * 1e6 / ((_outstandingLoans[loanId_].stakedGns-gnsToSend(amount_)) * currGnsPrice());
+        return healthFactorShifted;
+    }
+
+    function gnsToSend(uint256 amount_) public view returns(uint256){
+        //round up
+        uint256 gnsprice = currGnsPrice();
+        return (((amount_*1175*(1e6))/1000)+gnsprice-1)/gnsprice;
     }
 
     //make it call gns price aggregator, returns that price with 6 decimals
-    function currGnsPrice() public pure returns(uint256){
-        return 7000000;
+    function currGnsPrice() public view returns(uint256){
+        return _gnsPrice;
+    }
+
+    function changeGnsPrice(uint256 amount_) public {
+        require(msg.sender==_gov);
+        _gnsPrice = amount_;
     }
 
     //purely for testing

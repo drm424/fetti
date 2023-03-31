@@ -47,6 +47,9 @@ describe("Test", function () {
     const gnsLoan = await GnsLoan.deploy(loaner.address, usdc.address, gns.address, vault.address);
     await gnsLoan.deployed();
 
+    await loaner.connect(owner).addPool(gnsLoan.address, 2,(10**12));
+    await gnsLoan.connect(owner).setLoanerId(2);
+
     return {usdc, token, vault, ethLoan, loaner, gns, gnsLoan, owner, otherAccount};
   }
 
@@ -209,6 +212,7 @@ describe("Test", function () {
       await ethLoan.connect(otherAccount).repayLoan(1,(5*(10**6)));
       expect(Number(await ethLoan.totalBorrow(1))).to.equal(0);
       expect(Number(await usdc.balanceOf(vault.address))).to.equal(Number(10**7));
+
     });
   
   });
@@ -317,6 +321,40 @@ describe("Test", function () {
   
 
 
+
+  });
+
+  describe("Liquidations", function () {
+
+    it("WIP", async function () {      
+      const {usdc, token, vault, gns, gnsLoan, owner} = await loadFixture(deployFixture);
+      
+      const balance = 10**7;
+      await usdc.connect(owner).approve(token.address, balance);
+      await token.connect(owner).deposit(balance, owner.address);
+        
+      await vault.connect(owner).sendUsdcToLoaner(Number((10**7)/2));
+
+      await gns.connect(owner).approve(gnsLoan.address,200);
+      await gnsLoan.connect(owner).depositColateral(owner.address, 200);
+      expect(Number(await gnsLoan.balanceOf(owner.address))).to.equal(Number(1));
+      expect(Number(await gnsLoan.totalColateral(1))).to.equal(Number(200));
+      expect(Number(await gnsLoan.getDaiRatio(1))).to.equal(Number(0));
+
+      await gnsLoan.connect(owner).borrow(1, (10), '0x0000000000000000000000000000000000000007');
+
+      expect(Number(await usdc.balanceOf('0x0000000000000000000000000000000000000007'))).to.equal(Number(10));
+      expect(Number(await gnsLoan.totalBorrow(1))).to.equal(10);
+      expect(Number(await gnsLoan.totalColateral(1))).to.equal(200);
+      expect(Number(await gnsLoan.getCurrHealth(1))).to.equal(Number(7142857142857142));
+
+      await gnsLoan.connect(owner).changeGnsPrice(Number(83333));
+      expect(Number(await gnsLoan.getCurrHealth(1))).to.greaterThan(Number(6e17));
+      expect(Number(await gnsLoan.getNewLiqHealth(1, 8))).to.greaterThan(Number(6e17));
+
+
+
+    });
 
   });
 
