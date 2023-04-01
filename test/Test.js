@@ -335,7 +335,7 @@ describe("Test", function () {
         
       await vault.connect(owner).sendUsdcToLoaner(Number((10**7)/2));
 
-      await gns.connect(owner).approve(gnsLoan.address,200);
+      await gns.connect(owner).approve(gnsLoan.address,100000000);
       await gnsLoan.connect(owner).depositColateral(owner.address, 200);
       expect(Number(await gnsLoan.balanceOf(owner.address))).to.equal(Number(1));
       expect(Number(await gnsLoan.totalColateral(1))).to.equal(Number(200));
@@ -350,8 +350,11 @@ describe("Test", function () {
 
       await gnsLoan.connect(owner).changeGnsPrice(Number(83333));
       expect(Number(await gnsLoan.getCurrHealth(1))).to.greaterThan(Number(6e17));
-      expect(Number(await gnsLoan.getNewLiqHealth(1, 8))).to.greaterThan(Number(6e17));
-
+      expect(Number(await gnsLoan.getNewLiqHealth(1, 6))).to.lessThan(Number(4275e14));
+      await usdc.connect(owner).approve(gnsLoan.address,100000000);
+      await gnsLoan.connect(owner).liquidate(1,6,owner.address);
+      expect(Number(await gnsLoan.getCurrHealth(1))).to.greaterThan(Number(6e17));
+ 
 
 
     });

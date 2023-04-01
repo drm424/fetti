@@ -119,7 +119,7 @@ contract ethPool is IPool, ERC721{
 
     //needs frax funcionality before completion
     //probably need a function to split rewards 
-    function liquidate(uint256 loanId_) external{
+    function liquidate(uint256 loanId_,uint256 amount_,address payer_) external{
          
     }
 

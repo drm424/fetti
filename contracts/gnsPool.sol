@@ -50,6 +50,9 @@ contract gnsPool is IPool, ERC721{
     uint256 private _lenderSplit;
     uint256 private _projectSplit;
 
+    uint256 private _lowerLiq;
+    uint256 private _higherLiq;
+
     //for testing only delete upon launch
     uint256 private _gnsPrice;
    
@@ -66,6 +69,9 @@ contract gnsPool is IPool, ERC721{
         _borrowerSplit = 20;
         _lenderSplit = 70;
         _projectSplit = 10;
+
+        _lowerLiq=(3275*1e14);
+        _higherLiq=(4275*1e14);
 
         //for testing only delete upon launch
         _gnsPrice=7000000;
@@ -170,11 +176,19 @@ contract gnsPool is IPool, ERC721{
     }
  
     //dont use existing health functions, needs deposited gns not staked fns for liqs
-    function liquidate(uint256 loanId_) external{
+    function liquidate(uint256 loanId_,uint256 amount_,address payer_) external{
         require(_outstandingLoans[loanId_].maxHealthFactor<getCurrHealth(loanId_));
-        //need to make sure the amount sent to liquidate put the health factor in the range .3275-.4275
-        //take the health factor formula and solve for amount to send
-        //will be very hard
+        require(_lowerLiq<=getNewLiqHealth(loanId_,amount_)&&_higherLiq>=getNewLiqHealth(loanId_,amount_));
+        _usdc.transferFrom(payer_,address(this),amount_);
+        _outstandingLoans[loanId_].borrowedUsdc-=amount_;
+        uint256 gnsSend = gnsToSend(amount_);
+        _outstandingLoans[loanId_].stakedGns-=gnsSend;
+        //split rewards before transfer of gns
+        _gns.transfer(msg.sender, gnsSend);
+        uint256 x = (10*_outstandingLoans[loanId_].stakedGns)/100;
+        _outstandingLoans[loanId_].stakedGns-=x;
+        _gns.transfer(address(_vault),((75*x)/100));
+        _gns.transfer(address(_gov),((25*x)/100));
     }
 
     //dont use existing health functions, needs deposited gns not staked fns for liqs
