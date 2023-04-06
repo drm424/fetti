@@ -8,16 +8,19 @@ import "../node_modules/@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol"
 import "./IVault.sol";
 import "./Vault.sol";
 
+//This token represents the amount of dai entered into the system as a lender
+//The backing of each token increases as profits are made from the loan
+//Is a erc4626 token
 contract FettiERC20 is ERC20, IERC4626{
     using Math for uint256;
 
     address private _gov;
-    IERC20 private immutable _usdc;
+    IERC20 private immutable _dai;
     IVault private _vault;
 
-    constructor(IERC20 usdc_) ERC20("fetti", "FET"){
+    constructor(IERC20 dai_) ERC20("fetti", "FET"){
         _gov = msg.sender;
-        _usdc = usdc_;
+        _dai = dai_;
     }
 
     //set vault after deployment
@@ -32,15 +35,15 @@ contract FettiERC20 is ERC20, IERC4626{
     }
 
     function asset() external view override returns (address assetTokenAddress){
-        return address(_usdc);
+        return address(_dai);
     }
 
     function totalAssets() public view override(IERC4626) returns (uint256 totalManagedAssets){
-        return _vault.totalUsdc();
+        return _vault.totalDai();
     }
 
-    function totalUsdcInVault() public view returns (uint256 totalManagedAssets){
-        return _vault.totalUsdcInVault();
+    function totalDaiInVault() public view returns (uint256 totalManagedAssets){
+        return _vault.totalDaiInVault();
     }
 
     //changes in called function
@@ -64,7 +67,7 @@ contract FettiERC20 is ERC20, IERC4626{
     }
 
     function maxWithdraw(address owner) public view override returns (uint256 maxAssets){
-        uint256 vaultLiquidity = _vault.totalUsdcInVault();
+        uint256 vaultLiquidity = _vault.totalDaiInVault();
         uint256 addressBalance = _convertToAssets(balanceOf(owner), Math.Rounding.Down);
         if(vaultLiquidity>addressBalance){
             return addressBalance;
@@ -73,7 +76,7 @@ contract FettiERC20 is ERC20, IERC4626{
     }
 
     function maxRedeem(address owner) public view override returns (uint256 maxShares){
-        uint256 vaultLiquidity = _convertToShares(_vault.totalUsdcInVault(), Math.Rounding.Up);
+        uint256 vaultLiquidity = _convertToShares(_vault.totalDaiInVault(), Math.Rounding.Up);
         uint256 addressBalance = balanceOf(owner);
         if(vaultLiquidity>addressBalance){
             return _convertToShares(addressBalance, Math.Rounding.Down);
@@ -106,10 +109,9 @@ contract FettiERC20 is ERC20, IERC4626{
     //idk what else is needed
     function deposit(uint256 assets, address receiver) external override returns (uint256 shares){
         require(assets <= maxDeposit(receiver), "ERC4626: deposit more than max");
-        require(_usdc.balanceOf(msg.sender)>=assets, "Not enough assets in the wallet");
+        require(_dai.balanceOf(msg.sender)>=assets, "Not enough assets in the wallet");
         uint256 shares_ = previewDeposit(assets);
         _deposit(_msgSender(), receiver, assets, shares_);
-
         return shares;
     }
 
@@ -167,7 +169,7 @@ contract FettiERC20 is ERC20, IERC4626{
     //transfer to vault address
     //i think that is the only change, but check again 
     function _deposit(address caller, address receiver, uint256 assets, uint256 shares) internal {
-        SafeERC20.safeTransferFrom(_usdc, caller, address(_vault), assets);
+        SafeERC20.safeTransferFrom(_dai, caller, address(_vault), assets);
         _mint(receiver, shares);
         emit Deposit(caller, receiver, assets, shares);
     }
@@ -182,6 +184,6 @@ contract FettiERC20 is ERC20, IERC4626{
     }
 
     function getVaultAssets() internal view returns (uint256 assets){
-        return _vault.totalUsdc();
+        return _vault.totalDai();
     }
 }

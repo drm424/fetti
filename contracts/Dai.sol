@@ -3,9 +3,9 @@ pragma solidity ^0.8.0;
 
 import "../node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract USDC is ERC20{
+contract Dai is ERC20{
 
-    constructor() ERC20("USDC", "USDC"){
+    constructor() ERC20("Dai", "dai"){
         _mint(msg.sender, 10**19);
     }
 

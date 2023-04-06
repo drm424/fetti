@@ -9,10 +9,10 @@ interface IVault{
 
     function widthdraw(address receiver, uint256 assets) external;
 
-    function sendUsdcToLoaner(uint256 amount_) external returns(uint256 amount);
+    function sendDaiToLoaner(uint256 amount_) external returns(uint256 amount);
 
     //total usdc in vault & loaned out 
-    function totalUsdc() external view returns(uint256 amount);
+    function totalDai() external view returns(uint256 amount);
 
-    function totalUsdcInVault() external view returns(uint256 assets);
+    function totalDaiInVault() external view returns(uint256 assets);
 }

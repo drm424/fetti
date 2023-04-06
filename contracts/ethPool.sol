@@ -6,8 +6,8 @@ import "./ILoaner.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract ethPool is IPool, ERC721{
-
+abstract contract ethPool is IPool, ERC721{
+    /**
     event LoanOpen(address mintor, uint256 tokenId, uint256 amount);
     event AddedColateral(uint256 tokenId, uint256 amount);
     event LoanClose(address receiver, uint256 tokenId, uint256 amount);
@@ -186,4 +186,5 @@ contract ethPool is IPool, ERC721{
         require(0==1, "This is an eth loan");
         return 0;
     }
+    */
 }

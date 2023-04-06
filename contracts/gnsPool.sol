@@ -22,7 +22,6 @@ contract gnsPool is IPool, ERC721{
     struct Loan{
         uint256 id;
         uint256 daiRatioPayout;
-        uint256 depositedGns;
         uint256 stakedGns;
         uint256 borrowedUsdc;
         uint256 unlockTime;
@@ -93,11 +92,13 @@ contract gnsPool is IPool, ERC721{
         require(balanceOf(msg.sender)==0, "can only have one loan per address");
         require(_gns.balanceOf(msg.sender)>=amount_, "don't have enough gns");
         require(_gns.allowance(msg.sender, address(this))>=amount_, "must have enough tokens approved in the gns contract");
+        //collect rewards
         _count+=1;
+        //chainlink time oracle here + the users inputted lock time 
         uint256 unlockTime = block.timestamp + 1;
         _gns.transferFrom(msg.sender, address(this), amount_);
         //stake(amount_);
-        _outstandingLoans[_count] = Loan(_count,_daiRatio,amount_,amount_,0,unlockTime,(5*1e17),(6*1e17));
+        _outstandingLoans[_count] = Loan(_count,_daiRatio,amount_,0,unlockTime,(5*1e17),(6*1e17));
         _safeMint(receiver_, _count);
         _totalColateral+=amount_;
         emit LoanOpen(msg.sender,_count,amount_);
@@ -109,11 +110,16 @@ contract gnsPool is IPool, ERC721{
         require(_gns.balanceOf(msg.sender)>=amount_, "don't have enough gns");
         require(_gns.allowance(msg.sender, address(this))>=amount_, "must have enough tokens approved in the gns contract");
         _gns.transferFrom(msg.sender, address(this), amount_);
+        //collect rewards
         //increases to the average reward weight is less for new colateral
-        _outstandingLoans[loanId_].depositedGns+=amount_;
+        //stake(amount_);
+        //uint256 rewards = (_daiRatio-_outstandingLoans[loanId_].daiRatioPayout)*stakedAmount;
+        //splitRewards(rewards, msg.sender);  
+        _outstandingLoans[loanId_].daiRatioPayout=_daiRatio;
+        _outstandingLoans[loanId_].stakedGns+=amount_;
         _totalColateral+=amount_;
         emit AddedColateral(loanId_, amount_);
-        return _outstandingLoans[loanId_].depositedGns;
+        return _outstandingLoans[loanId_].stakedGns;
     }
 
     function stake(uint256 amount_) internal{
@@ -127,7 +133,8 @@ contract gnsPool is IPool, ERC721{
         require(_outstandingLoans[loanId_].unlockTime<block.timestamp,"Colateral is still locked");
         require(_outstandingLoans[loanId_].borrowedUsdc==0,"Must repay entire loan before removing colateral");
         require(msg.sender==ownerOf(loanId_),"Must be the owner of the loan");
-        uint256 amount = _outstandingLoans[loanId_].depositedGns + 0;
+        //collect rewards
+        uint256 amount = _outstandingLoans[loanId_].stakedGns + 0;
         uint256 stakedAmount = _outstandingLoans[loanId_].stakedGns;
         uint256 rewards = (_daiRatio-_outstandingLoans[loanId_].daiRatioPayout)*stakedAmount;
         //unstake(stakedAmount);
@@ -156,10 +163,10 @@ contract gnsPool is IPool, ERC721{
         require(_exists(loanId_),"Loan doesnt exist");
         require(getNewHealth(loanId_, amount_)<(_outstandingLoans[loanId_].maxBorrowedUsdc*1e4), "Requesting too much usdc");
         require(msg.sender==ownerOf(loanId_),"must be owner");
-        require(_loaner.poolFreeUsdc(1)!=0,"loaner does not have enough usdc to cover your amount");
+        require(_loaner.poolFreeDai()!=0,"loaner does not have enough usdc to cover your amount");
         _currLoanedOut+=amount_;
         _outstandingLoans[loanId_].borrowedUsdc+=amount_;
-        _loaner.sendLoan(sendTo_,_loanerId,amount_);
+        _loaner.sendLoan(sendTo_,amount_);
         emit SentLoan(loanId_, amount_);
         return amount_;
     }
@@ -198,7 +205,7 @@ contract gnsPool is IPool, ERC721{
 
     function totalColateral(uint256 loanId_) public view returns(uint256){
         require(_exists(loanId_),"loanId must be a open loan");
-        return _outstandingLoans[loanId_].depositedGns;
+        return _outstandingLoans[loanId_].stakedGns;
     }
 
     function totalBorrow(uint256 loanId_) public view returns(uint256){
