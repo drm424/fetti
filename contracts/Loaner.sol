@@ -20,9 +20,9 @@ contract Loaner is ILoaner{
     IERC20 private _dai;
   
 
-    constructor(address dai_){
+    constructor(){
         _gov = msg.sender;
-        _dai = IERC20(dai_);
+        _dai = IERC20(0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063);
     }
 
     //add usdc in loaner and loaned out amount of all pools

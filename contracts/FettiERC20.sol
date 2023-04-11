@@ -18,9 +18,9 @@ contract FettiERC20 is ERC20, IERC4626{
     IERC20 private immutable _dai;
     IVault private _vault;
 
-    constructor(IERC20 dai_) ERC20("fetti", "FET"){
+    constructor() ERC20("fetti", "FET"){
         _gov = msg.sender;
-        _dai = dai_;
+        _dai = IERC20(0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063);
     }
 
     //set vault after deployment

@@ -16,8 +16,8 @@ contract Vault is IVault{
     ILoaner private _loaner;
     address private _gov;    
 
-    constructor(address dai_, address share_, address loaner_){
-        _dai = IERC20(dai_);
+    constructor(address share_, address loaner_){
+        _dai = IERC20(0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063);
         _share = IERC4626(share_);
         _loaner = ILoaner(loaner_);
         _gov = msg.sender;

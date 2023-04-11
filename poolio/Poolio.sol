@@ -3,7 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./IGnsStaker.sol";
+import "../contracts/IGnsStaker.sol";
 //import "./TWAPPriceGetter.sol";
 
 contract Poolio{
@@ -38,7 +38,6 @@ contract Poolio{
         totalColateral=0;
     }
 
-    //amount_ may need to be at minimum enough tokens to cover then shifting contract
     function stakeGns(uint256 amount_) external{
         if(totalColateral!=0){
             updateDaiRatio();
@@ -49,7 +48,6 @@ contract Poolio{
         gnsStaker.stakeTokens(amount_);
         totalColateral+=amount_;
         colateral[msg.sender]=amount_;
-        emit Test(1,amount_,0);
     }
 
     function takeGns(uint256 amount_) external{

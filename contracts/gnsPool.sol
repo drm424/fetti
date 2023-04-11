@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import "./IPool.sol";
 import "./ILoaner.sol";
 import "./IGnsStaker.sol";
+import "./ITWAPPriceGetter.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -34,13 +35,17 @@ contract gnsPool is IPool, ERC721{
 
     uint256 private _currLoanedOut;
     uint256 private _totalColateral;
-    //6 decimal representation of dai harvested per colateral token
-    uint256 private _daiRatio;
+
+    //10 decimal representation of dai harvested per colateral token
+    uint256 private currDaiRatio;
     
     address private _gov;
+
     IERC20 private immutable _usdc;
     IERC20 private _gns;
-    IGnsStaker private _IGnsStaker = IGnsStaker(0xFb06a737f549Eb2512Eb6082A808fc7F16C0819D);
+    IGnsStaker private _IGnsStaker;
+    ITWAPPriceGetter private _IGnsOracle;
+
     ILoaner private _loaner;
     uint256 private _loanerId;
     address private _vault;
@@ -52,16 +57,17 @@ contract gnsPool is IPool, ERC721{
     uint256 private _lowerLiq;
     uint256 private _higherLiq;
 
-    //for testing only delete upon launch
-    uint256 private _gnsPrice;
+    uint256 immutable shiftingConstant = 1e18;
    
-    constructor(address loaner_, address usdc_, address gns_, address vault_) ERC721("Fetti GNS Colateralized Loan", "FetGns") {
+    constructor(address loaner_, address vault_) ERC721("Fetti GNS Colateralized Loan", "FetGns") {
         _gov = msg.sender;
-        _usdc = IERC20(usdc_);
+        _usdc = IERC20(0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063);
+        _gns = IERC20(0xE5417Af564e4bFDA1c483642db72007871397896);
+        _IGnsStaker = IGnsStaker(0xFb06a737f549Eb2512Eb6082A808fc7F16C0819D);
+        _IGnsOracle = ITWAPPriceGetter(0x631e885028E75fCbB34C06d8ecB8e20eA18f6632);
         _loaner = ILoaner(loaner_);
-        _gns = IERC20(gns_);
         _vault = vault_;
-        _daiRatio = 0;
+        currDaiRatio = 0;
         _count = 0;
         _currLoanedOut = 0;
 
@@ -71,15 +77,6 @@ contract gnsPool is IPool, ERC721{
 
         _lowerLiq=(3275*1e14);
         _higherLiq=(4275*1e14);
-
-        //for testing only delete upon launch
-        _gnsPrice=7000000;
-    }
-
-    function setLoanerId(uint256 poolId_) external returns(uint256){
-        require(msg.sender==_gov,"only gov!!!");
-        _loanerId = poolId_;
-        return _loanerId;
     }
 
     //add global var and track loaned out amounts with each borrow and repayment
@@ -92,15 +89,14 @@ contract gnsPool is IPool, ERC721{
         require(balanceOf(msg.sender)==0, "can only have one loan per address");
         require(_gns.balanceOf(msg.sender)>=amount_, "don't have enough gns");
         require(_gns.allowance(msg.sender, address(this))>=amount_, "must have enough tokens approved in the gns contract");
-        //collect rewards
         _count+=1;
         //chainlink time oracle here + the users inputted lock time 
         uint256 unlockTime = block.timestamp + 1;
         _gns.transferFrom(msg.sender, address(this), amount_);
-        //stake(amount_);
-        _outstandingLoans[_count] = Loan(_count,_daiRatio,amount_,0,unlockTime,(5*1e17),(6*1e17));
-        _safeMint(receiver_, _count);
+        _outstandingLoans[_count] = Loan(_count,currDaiRatio,0,0,unlockTime,(5*1e17),(6*1e17));
+        stakeGns(amount_, _count);
         _totalColateral+=amount_;
+        _safeMint(receiver_, _count);
         emit LoanOpen(msg.sender,_count,amount_);
         return _count;
     }
@@ -109,34 +105,23 @@ contract gnsPool is IPool, ERC721{
         require(msg.sender==ownerOf(loanId_),"Loan doesn't exist or you are not the owner of the loan");
         require(_gns.balanceOf(msg.sender)>=amount_, "don't have enough gns");
         require(_gns.allowance(msg.sender, address(this))>=amount_, "must have enough tokens approved in the gns contract");
+        updateDaiRatio();
+        splitDai(loanId_);
         _gns.transferFrom(msg.sender, address(this), amount_);
-        //collect rewards
-        //increases to the average reward weight is less for new colateral
-        //stake(amount_);
-        //uint256 rewards = (_daiRatio-_outstandingLoans[loanId_].daiRatioPayout)*stakedAmount;
-        //splitRewards(rewards, msg.sender);  
-        _outstandingLoans[loanId_].daiRatioPayout=_daiRatio;
-        _outstandingLoans[loanId_].stakedGns+=amount_;
-        _totalColateral+=amount_;
+        stakeGns(amount_,loanId_);
         emit AddedColateral(loanId_, amount_);
         return _outstandingLoans[loanId_].stakedGns;
     }
 
-    function stake(uint256 amount_) internal{
-        _gns.approve(address(_IGnsStaker), amount_);
-        _IGnsStaker.stakeTokens(amount_);
-        emit StakedColateral(amount_);
-    }
-
+    //needs to split the collected rewards
     function widthdrawColateral(address receiver_, uint256 loanId_) external returns(uint256){
         require(_exists(loanId_),"loanId must be a open loan");
         require(_outstandingLoans[loanId_].unlockTime<block.timestamp,"Colateral is still locked");
         require(_outstandingLoans[loanId_].borrowedUsdc==0,"Must repay entire loan before removing colateral");
         require(msg.sender==ownerOf(loanId_),"Must be the owner of the loan");
-        //collect rewards
         uint256 amount = _outstandingLoans[loanId_].stakedGns + 0;
-        uint256 stakedAmount = _outstandingLoans[loanId_].stakedGns;
-        uint256 rewards = (_daiRatio-_outstandingLoans[loanId_].daiRatioPayout)*stakedAmount;
+        //uint256 stakedAmount = _outstandingLoans[loanId_].stakedGns;
+        //uint256 rewards = (currDaiRatio-_outstandingLoans[loanId_].daiRatioPayout)*stakedAmount;
         //unstake(stakedAmount);
         _totalColateral-=amount;
         _closeLoan(loanId_);
@@ -146,22 +131,57 @@ contract gnsPool is IPool, ERC721{
         return amount;
     }
 
-    function unstake(uint256 amount_) internal{
-        uint256 amount = _IGnsStaker.pendingRewardDai();
-        require(((amount*(10**6))/_totalColateral)>0,"must be enough dai to harvest!!");
-        _IGnsStaker.unstakeTokens(amount_);
-        _daiRatio+=((amount*(10**6))/_totalColateral);
+    /**
+     * need to split any collected rewards before calling this message
+     */
+    function stakeGns(uint256 amount_, uint256 loanId_) public{
+        if(_totalColateral!=0){
+            updateDaiRatio();
+        }
+        _outstandingLoans[loanId_].daiRatioPayout = currDaiRatio;
+        _gns.transferFrom(msg.sender, address(this), amount_);
+        _gns.approve(address(_IGnsStaker), amount_);
+        _IGnsStaker.stakeTokens(amount_);
+        _outstandingLoans[loanId_].stakedGns+=amount_;
+        _totalColateral+=amount_;
     }
 
-    function splitRewards(uint256 amount_, address borrower_) internal{
-        _usdc.transfer(_vault,(amount_*_lenderSplit)/100);
-        _usdc.transfer(borrower_,(amount_*_borrowerSplit)/100);
-        _usdc.transfer(address(0),(amount_*_projectSplit)/100);
+    function updateDaiRatio() public{
+        uint256 amount = pendingDai();
+        _IGnsStaker.harvest();
+        currDaiRatio+=(amount*shiftingConstant/_totalColateral);
+    }
+
+    function pendingDai() public view returns(uint256){
+        return _IGnsStaker.pendingRewardDai();
+    }
+
+    function takeGns(uint256 amount_, uint256 loanId_) external{
+        require(_outstandingLoans[loanId_].stakedGns>=amount_);
+        updateDaiRatioAndUnstake(amount_);
+        _outstandingLoans[loanId_].stakedGns-=amount_;
+        _totalColateral-=amount_;
+        _gns.transfer(msg.sender,amount_);
+        //splitDai(msg.sender,(amount_*(currDaiRatio-daiRatio[msg.sender])/shiftingConstant));
+    }
+
+    function updateDaiRatioAndUnstake(uint256 gnsAmount) internal{
+        uint256 amount = pendingDai();
+        _IGnsStaker.unstakeTokens(gnsAmount);
+        currDaiRatio+=(amount*shiftingConstant/_totalColateral);
+    }
+
+    function splitDai(uint256 loanId_) internal{
+        uint256 rewards = (_outstandingLoans[loanId_].stakedGns*(currDaiRatio-_outstandingLoans[loanId_].daiRatioPayout)/shiftingConstant);
+        _outstandingLoans[loanId_].daiRatioPayout=currDaiRatio;
+        _usdc.transfer(_vault,(rewards*70)/100);
+        _usdc.transfer(ownerOf(loanId_),(rewards*15)/100);
+        _usdc.transfer(_gov,(rewards*15)/100);
     }
 
     function borrow(uint256 loanId_, uint256 amount_, address payable sendTo_) external returns(uint256){
         require(_exists(loanId_),"Loan doesnt exist");
-        require(getNewHealth(loanId_, amount_)<(_outstandingLoans[loanId_].maxBorrowedUsdc*1e4), "Requesting too much usdc");
+        require(getNewBorrowHealth(loanId_, amount_)<(_outstandingLoans[loanId_].maxBorrowedUsdc*1e4), "Requesting too much usdc");
         require(msg.sender==ownerOf(loanId_),"must be owner");
         require(_loaner.poolFreeDai()!=0,"loaner does not have enough usdc to cover your amount");
         _currLoanedOut+=amount_;
@@ -225,7 +245,7 @@ contract gnsPool is IPool, ERC721{
     //returns decimal value with 18 decimals, percentage with 16 decimals
     //***USES STAKED GNS TO FIND HEALTH***
     //**DON"T USE FOR LIQUIDATIONS ONLY BORROWING***
-    function getNewHealth(uint256 loanId_, uint256 amount_) public view returns(uint256){
+    function getNewBorrowHealth(uint256 loanId_, uint256 amount_) public view returns(uint256){
         uint256 healthFactorShifted = ((_outstandingLoans[loanId_].borrowedUsdc+amount_) * 1e18) * 1e6 / (_outstandingLoans[loanId_].stakedGns * currGnsPrice());
         return healthFactorShifted;
     }
@@ -243,12 +263,8 @@ contract gnsPool is IPool, ERC721{
 
     //make it call gns price aggregator, returns that price with 6 decimals
     function currGnsPrice() public view returns(uint256){
-        return _gnsPrice;
-    }
-
-    function changeGnsPrice(uint256 amount_) public {
-        require(msg.sender==_gov);
-        _gnsPrice = amount_;
+        uint256 price6decimals = _IGnsOracle.tokenPriceDai()/(1e4);
+        return price6decimals;
     }
 
     //purely for testing
@@ -280,17 +296,7 @@ contract gnsPool is IPool, ERC721{
     }
 
     //for testing only. remove upon launch
-    function changeDaiRatio(uint256 amount_) external{
-        _daiRatio = amount_;
-    }
-
-    //for testing only. remove upon launch
     function getDaiRatio(uint256 loanId_) external view returns(uint256){
         return _outstandingLoans[loanId_].daiRatioPayout;
-    }
-
-    //for testing only. remove upon launch
-    function getStakedGns(uint256 loanId_) external view returns(uint256){
-        return _outstandingLoans[loanId_].stakedGns;
     }
 }
