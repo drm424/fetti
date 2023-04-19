@@ -8,12 +8,16 @@ import "./ITWAPPriceGetter.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+
 contract gnsPool is IPool, ERC721{
+
+    event Test(uint256 x, uint256 y, uint256 z);
 
     event LoanOpen(address mintor, uint256 tokenId, uint256 amount);
     event AddedColateral(uint256 tokenId, uint256 amount);
-    event StakedColateral(uint256 amount);
     event LoanClose(address receiver, uint256 tokenId, uint256 amount);
+    event StakedColateral(uint256 amount, uint256 tokenId);
+    event UnstakedColateral(uint256 amount, uint256 tokenId);
     event SentLoan(uint256 tokenId, uint256 amount);
     event RepaidLoan(uint256 tokenId, address payer, uint256 amountRepaid, uint256 outstandingLoanValue);
     event Liquidation(uint tokenId, uint256 amountToVault, uint256 amountToBorrower, uint256 amountToFund);
@@ -28,16 +32,18 @@ contract gnsPool is IPool, ERC721{
         uint256 unlockTime;
         uint256 maxBorrowedUsdc;
         uint256 maxHealthFactor;
+        uint256 lowerLiq;
+        uint256 higherLiq;
     }
 
-    mapping(uint256=>Loan) private _outstandingLoans;
+    mapping(uint256=>Loan) public _outstandingLoans;
     uint256 private _count;
 
     uint256 private _currLoanedOut;
     uint256 private _totalColateral;
 
     //10 decimal representation of dai harvested per colateral token
-    uint256 private currDaiRatio;
+    uint256 public currDaiRatio;
     
     address private _gov;
 
@@ -57,9 +63,13 @@ contract gnsPool is IPool, ERC721{
     uint256 private _lowerLiq;
     uint256 private _higherLiq;
 
+    uint256 private _maxLTV;
+    uint256 private _minLTVLiq;
+
+
     uint256 immutable shiftingConstant = 1e18;
    
-    constructor(address loaner_, address vault_) ERC721("Fetti GNS Colateralized Loan", "FetGns") {
+    constructor(address loaner_, address vault_) ERC721("Fetti GNS", "FetGns") {
         _gov = msg.sender;
         _usdc = IERC20(0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063);
         _gns = IERC20(0xE5417Af564e4bFDA1c483642db72007871397896);
@@ -77,6 +87,9 @@ contract gnsPool is IPool, ERC721{
 
         _lowerLiq=(3275*1e14);
         _higherLiq=(4275*1e14);
+
+        _maxLTV=(5*1e17);
+        _minLTVLiq=(6*1e17);
     }
 
     //add global var and track loaned out amounts with each borrow and repayment
@@ -89,15 +102,17 @@ contract gnsPool is IPool, ERC721{
         require(balanceOf(msg.sender)==0, "can only have one loan per address");
         require(_gns.balanceOf(msg.sender)>=amount_, "don't have enough gns");
         require(_gns.allowance(msg.sender, address(this))>=amount_, "must have enough tokens approved in the gns contract");
+        if(_totalColateral!=0){
+            updateDaiRatio();
+        }
         _count+=1;
-        //chainlink time oracle here + the users inputted lock time 
         uint256 unlockTime = block.timestamp + 1;
         _gns.transferFrom(msg.sender, address(this), amount_);
-        _outstandingLoans[_count] = Loan(_count,currDaiRatio,0,0,unlockTime,(5*1e17),(6*1e17));
-        stakeGns(amount_, _count);
         _totalColateral+=amount_;
+        _outstandingLoans[_count] = Loan(_count,currDaiRatio,0,0,unlockTime, _lowerLiq, _higherLiq, _maxLTV, _minLTVLiq);
+        stakeGns(amount_, _count);
         _safeMint(receiver_, _count);
-        emit LoanOpen(msg.sender,_count,amount_);
+        emit LoanOpen(receiver_, _count, amount_);
         return _count;
     }
 
@@ -117,17 +132,15 @@ contract gnsPool is IPool, ERC721{
     function widthdrawColateral(address receiver_, uint256 loanId_) external returns(uint256){
         require(_exists(loanId_),"loanId must be a open loan");
         require(_outstandingLoans[loanId_].unlockTime<block.timestamp,"Colateral is still locked");
+        //look into widthdrawing just enough to keep health factor over the max hf
         require(_outstandingLoans[loanId_].borrowedUsdc==0,"Must repay entire loan before removing colateral");
         require(msg.sender==ownerOf(loanId_),"Must be the owner of the loan");
         uint256 amount = _outstandingLoans[loanId_].stakedGns + 0;
-        //uint256 stakedAmount = _outstandingLoans[loanId_].stakedGns;
-        //uint256 rewards = (currDaiRatio-_outstandingLoans[loanId_].daiRatioPayout)*stakedAmount;
-        //unstake(stakedAmount);
-        _totalColateral-=amount;
+        splitDai(loanId_);   
+        takeGns(amount, loanId_);
         _closeLoan(loanId_);
         _gns.transfer(receiver_, amount);   
         emit LoanClose(receiver_, loanId_, amount);  
-        //splitRewards(rewards, msg.sender);   
         return amount;
     }
 
@@ -139,11 +152,14 @@ contract gnsPool is IPool, ERC721{
             updateDaiRatio();
         }
         _outstandingLoans[loanId_].daiRatioPayout = currDaiRatio;
-        _gns.transferFrom(msg.sender, address(this), amount_);
         _gns.approve(address(_IGnsStaker), amount_);
         _IGnsStaker.stakeTokens(amount_);
         _outstandingLoans[loanId_].stakedGns+=amount_;
-        _totalColateral+=amount_;
+        emit StakedColateral(amount_, loanId_);
+    }
+
+    function getDaiRatio() public view returns(uint256){
+        return currDaiRatio;
     }
 
     function updateDaiRatio() public{
@@ -156,13 +172,13 @@ contract gnsPool is IPool, ERC721{
         return _IGnsStaker.pendingRewardDai();
     }
 
-    function takeGns(uint256 amount_, uint256 loanId_) external{
+    function takeGns(uint256 amount_, uint256 loanId_) public{
         require(_outstandingLoans[loanId_].stakedGns>=amount_);
         updateDaiRatioAndUnstake(amount_);
         _outstandingLoans[loanId_].stakedGns-=amount_;
         _totalColateral-=amount_;
         _gns.transfer(msg.sender,amount_);
-        //splitDai(msg.sender,(amount_*(currDaiRatio-daiRatio[msg.sender])/shiftingConstant));
+        emit UnstakedColateral(amount_, loanId_);
     }
 
     function updateDaiRatioAndUnstake(uint256 gnsAmount) internal{
@@ -172,6 +188,7 @@ contract gnsPool is IPool, ERC721{
     }
 
     function splitDai(uint256 loanId_) internal{
+        //use loan terms to send the rewards
         uint256 rewards = (_outstandingLoans[loanId_].stakedGns*(currDaiRatio-_outstandingLoans[loanId_].daiRatioPayout)/shiftingConstant);
         _outstandingLoans[loanId_].daiRatioPayout=currDaiRatio;
         _usdc.transfer(_vault,(rewards*70)/100);
@@ -181,7 +198,7 @@ contract gnsPool is IPool, ERC721{
 
     function borrow(uint256 loanId_, uint256 amount_, address payable sendTo_) external returns(uint256){
         require(_exists(loanId_),"Loan doesnt exist");
-        require(getNewBorrowHealth(loanId_, amount_)<(_outstandingLoans[loanId_].maxBorrowedUsdc*1e4), "Requesting too much usdc");
+        require(getNewBorrowHealth(loanId_, amount_)<(_outstandingLoans[loanId_].maxBorrowedUsdc), "Requesting too much usdc");
         require(msg.sender==ownerOf(loanId_),"must be owner");
         require(_loaner.poolFreeDai()!=0,"loaner does not have enough usdc to cover your amount");
         _currLoanedOut+=amount_;
@@ -223,16 +240,6 @@ contract gnsPool is IPool, ERC721{
 
     }
 
-    function totalColateral(uint256 loanId_) public view returns(uint256){
-        require(_exists(loanId_),"loanId must be a open loan");
-        return _outstandingLoans[loanId_].stakedGns;
-    }
-
-    function totalBorrow(uint256 loanId_) public view returns(uint256){
-        require(_exists(loanId_),"loanId must be a open loan");
-        return _outstandingLoans[loanId_].borrowedUsdc;
-    }
-
     //1e18 represents 100% health factor
     //**DON"T USE FOR LIQUIDATIONS ONLY BORROWING***
     function getCurrHealth(uint256 loanId_) public view returns(uint256){
@@ -267,11 +274,6 @@ contract gnsPool is IPool, ERC721{
         return price6decimals;
     }
 
-    //purely for testing
-    function exists(uint256 tokenId) public view returns (bool) {
-        return _ownerOf(tokenId) != address(0);
-    }
-
     function _closeLoan(uint256 loanId_) private{
         delete _outstandingLoans[loanId_];
         _burn(loanId_);
@@ -293,10 +295,5 @@ contract gnsPool is IPool, ERC721{
     function widthdrawColateralEth(address payable receiver_, uint256 loanId_) external payable returns(uint256){
         require(1==0,"is an erc-20 vault");
         return 0; 
-    }
-
-    //for testing only. remove upon launch
-    function getDaiRatio(uint256 loanId_) external view returns(uint256){
-        return _outstandingLoans[loanId_].daiRatioPayout;
     }
 }

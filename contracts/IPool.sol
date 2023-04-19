@@ -24,7 +24,4 @@ interface IPool{
     function liquidate(uint256 loanId_,uint256 amount_,address payer_ ) external; 
 
     function close(uint256 loanId_) external;
-
-    function totalColateral(uint256 loanId_) external returns(uint256);
-
 }
