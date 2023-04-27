@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./IPool.sol";
-import "./ILoaner.sol";
+import "../contracts/IPool.sol";
+import "../contracts/ILoaner.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 

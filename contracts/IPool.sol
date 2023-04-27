@@ -7,15 +7,9 @@ interface IPool{
 
     function depositColateral(address receiver_, uint256 amount_) external returns(uint256);
 
-    function depositColateralEth() external payable returns(uint256);
-
     function addColateral(uint256 loanId_, uint256 amount) external returns(uint256);
 
-    function addColateralEth(uint256 loanId_) external payable returns(uint256);
-
     function widthdrawColateral(address receiver_, uint256 loanId_) external returns(uint256);
-
-    function widthdrawColateralEth(address payable receiver_, uint256 loanId_) external payable returns(uint256);
 
     function borrow(uint256 loanId_, uint256 amount_, address payable sendTo_) external returns(uint256);
 
