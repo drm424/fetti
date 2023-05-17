@@ -11,7 +11,7 @@ module.exports = {
       url: process.env.API_KEY,
       accounts: [process.env.PRIVATE_KEY],
       chainId: 137,
-      gasPrice: 350e9
+      gasPrice: 150e9
     },
   },
 };

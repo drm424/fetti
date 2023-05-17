@@ -14,6 +14,17 @@ import "./Vault.sol";
 contract FettiERC20 is ERC20, IERC4626{
     using Math for uint256;
 
+    /** 
+    struct WidthdrawReuest{
+        address owner;
+        uint256 amountOfTokens;
+        uint256 epocPlaced;
+    }
+
+
+    mapping(address=>WidthdrawRequest);
+    */
+    
     address private _gov;
     IERC20 private immutable _dai;
     IVault private _vault;

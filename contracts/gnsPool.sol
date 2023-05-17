@@ -247,10 +247,10 @@ contract gnsPool is IPool, ERC721{
     }
 
     /**
-     * borrows 
-     * @param loanId_ 
-     * @param amount_ 
-     * @param sendTo_ 
+     * sends dai as a loan
+     * @param loanId_ loan id of the collateral being borrowed against
+     * @param amount_  amount of dai to send as a loan
+     * @param sendTo_  where the dai should be sent
      */
     function borrow(uint256 loanId_, uint256 amount_, address payable sendTo_) external returns(uint256){
         require(_exists(loanId_),"Loan doesnt exist");
@@ -264,7 +264,11 @@ contract gnsPool is IPool, ERC721{
         return amount_;
     }
 
-    //not exactly sure of the correct order of these transactions
+    /**
+     * repays an outstanding loan
+     * @param loanId_ loan id of the loan to pay back
+     * @param amount_ amount of dai being repaid
+     */
     function repayLoan(uint256 loanId_, uint256 amount_) external returns(uint256){
         require(_exists(loanId_),"loanId must be a open loan");
         require(amount_<=_outstandingLoans[loanId_].borrowedUsdc,"amount must be greater than 0 and less than your loaned out amount");
@@ -275,6 +279,12 @@ contract gnsPool is IPool, ERC721{
         return _outstandingLoans[loanId_].borrowedUsdc;
     }
  
+    /**
+     * liqudates an unhealthy loan
+     * @param loanId_ loan to liqudate
+     * @param amount_ amount of dai being paid by the liqudator to liqudate it
+     * @param payer_ the address to where the usdc is being sent from
+     */
     function liquidate(uint256 loanId_,uint256 amount_,address payer_) external{
         LoanLiqudationPenalty memory loanPens = _loanLiqudations[loanId_]; 
         Loan memory loan = _outstandingLoans[loanId_];               
@@ -295,10 +305,6 @@ contract gnsPool is IPool, ERC721{
         _gns.transfer(address(_gov),((loanPens.liquidationProjectSplit*x)/100));
     }
 
-    function close(uint256 loanId_) external{
-        //need to finalize business logic
-    }
-
     //1e18 represents 100% health factor
     function getCurrHealth(uint256 loanId_) public view returns(uint256){
         uint256 borrowedAmountShifted = _outstandingLoans[loanId_].borrowedUsdc * 1e18;
@@ -307,12 +313,13 @@ contract gnsPool is IPool, ERC721{
         return healthFactorShifted;
     }
 
-    //returns decimal value with 18 decimals, percentage with 16 decimals
+    //1e18 represents 100% health factor
     function getNewBorrowHealth(uint256 loanId_, uint256 amount_) public view returns(uint256){
         uint256 healthFactorShifted = ((_outstandingLoans[loanId_].borrowedUsdc+amount_) * 1e18) * 1e6 / (_outstandingLoans[loanId_].stakedGns * currGnsPrice());
         return healthFactorShifted;
     }
 
+    //1e18 represents 100% health factor
     function getNewLiqHealth(uint256 loanId_, uint256 amount_) public view returns(uint256){
         uint256 healthFactorShifted = ((_outstandingLoans[loanId_].borrowedUsdc-amount_) * 1e18) * 1e6 / ((_outstandingLoans[loanId_].stakedGns-gnsToSend(amount_)) * currGnsPrice());
         return healthFactorShifted;
