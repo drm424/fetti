@@ -13,4 +13,6 @@ interface ILoaner{
     function totalLoanedOut() external returns(uint256 amount);
 
     function poolFreeDai() external returns(uint256);
+
+    function sendToVault(uint256 amount_) external returns(uint256);
 }

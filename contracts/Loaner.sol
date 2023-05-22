@@ -13,16 +13,17 @@ contract Loaner is ILoaner{
     event ChangedMax(uint256 newMax_);
 
     address private _gov;
+    address private _fetti;
 
     IPool private _pool;
     uint256 private _maxBorrow;
 
-    IERC20 private _dai;
+    IERC20 private _dai = IERC20(0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063);
   
 
-    constructor(){
+    constructor(address fetti_){
         _gov = msg.sender;
-        _dai = IERC20(0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063);
+        _fetti = fetti_;
     }
 
     //add usdc in loaner and loaned out amount of all pools
@@ -47,7 +48,7 @@ contract Loaner is ILoaner{
     }
     
     function setPoolMax(uint256 newMax_) external {
-        require(msg.sender==_gov,"Only gov!!!");
+        require(msg.sender==_gov || msg.sender==_fetti,"Only gov or fet!!!");
         _maxBorrow = newMax_;
         emit ChangedMax(newMax_);
     }
@@ -75,5 +76,12 @@ contract Loaner is ILoaner{
 
     function getPoolLoanAmount() public view returns(uint256){
         return _pool.totalLoanedOut();
+    }
+
+    function sendToVault(uint256 amount_) external returns(uint256){
+        require(msg.sender==address(_fetti),"must be fetti");
+        require(totalDaiInLoaner()>=amount_,"Don't have enough usdc in loaner!");
+        SafeERC20.safeTransfer(_dai, _fetti, amount_);
+        return amount_;
     }
 }

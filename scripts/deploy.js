@@ -31,6 +31,7 @@ async function main() {
   console.log("vault address: ",vault.address);
 
   await fetti.setVault(vault.address);
+  await fetti.setLoaner(loaner.address);
 
   const GnsPool = await ethers.getContractFactory("gnsPool");
   const gnsPool = await GnsPool.deploy(loaner.address, vault.address);

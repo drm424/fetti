@@ -6,13 +6,45 @@ import "../node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "../node_modules/@openzeppelin/contracts/utils/math/Math.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./IVault.sol";
-import "./Vault.sol";
+import "./ILoaner.sol";
 
 //This token represents the amount of dai entered into the system as a lender
 //The backing of each token increases as profits are made from the loan
 //Is a erc4626 token
 contract FettiERC20 is ERC20, IERC4626{
     using Math for uint256;
+
+    modifier andSync() {
+        if(block.timestamp>=(_epocStartTime+_epocLength)){
+            //PART 1
+            _epocBurnRate = 0; //what do I put here
+            _epocStartTime = block.timestamp;
+            _currEpoc++;
+
+            //PART 2
+            uint256 vaultAssets = getVaultAssets();
+            uint256 loanerTotal = _dai.balanceOf(address(_loaner));
+            uint256 daiNeeded = _totalRequested-vaultAssets;
+
+            if(_totalRequested>vaultAssets){
+                if(loanerTotal<daiNeeded){
+                    _epocWidthdrawWait++;
+                    _loaner.setPoolMax(0);
+                    _loaner.sendToVault(loanerTotal);
+                    _;
+                }else{
+                    _loaner.sendToVault(daiNeeded);
+                    _loaner.setPoolMax(_dai.balanceOf(address(_loaner)));
+                    _;
+                }
+            }else{
+                uint256 daiLeftOver = vaultAssets-_totalRequested;
+                _dai.transfer(address(_loaner), daiLeftOver);
+                _;
+            }
+        }
+        _;       
+    }
  
     struct WidthdrawRequest{
         uint256 epocPlaced;
@@ -24,21 +56,28 @@ contract FettiERC20 is ERC20, IERC4626{
     uint256 public _currEpoc;
     uint256 public _epocBurnRate; //may need to be shifted
     uint256 public _epocStartTime;
-    uint256 public _epocLength;
 
     uint256 public _totalRequested;
+    uint256 public _epocLength;
     uint256 public _epocWidthdrawWait;
     mapping(address=>WidthdrawRequest) public _requestedWidthdraws;
     
     address private _gov;
     IERC20 private immutable _dai;
     IVault private _vault;
+    ILoaner private _loaner;
 
     constructor() ERC20("fetti", "FET"){
         _gov = msg.sender;
         _dai = IERC20(0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063);
-        _epocWidthdrawWait = 1;
-        _epocLength = 60;
+
+        _currEpoc=1;
+        _epocBurnRate=0; 
+        _epocStartTime=block.timestamp;
+
+        _totalRequested=0;
+        _epocLength=(60*60*24)*60;//just to fill vault will lower
+        _epocWidthdrawWait=2;
     }
 
     /**
@@ -57,8 +96,15 @@ contract FettiERC20 is ERC20, IERC4626{
     //set vault after deployment
     function setVault(address vault_)external returns(IVault vault){
         require(_gov==msg.sender, "Must be the gov!!");
-        _vault = Vault(vault_);
+        _vault = IVault(vault_);
         return _vault;
+    }
+
+    //set vault after deployment
+    function setLoaner(address loaner_)external returns(ILoaner loaner){
+        require(_gov==msg.sender, "Must be the gov!!");
+        _loaner = ILoaner(loaner_);
+        return _loaner;
     }
 
     function decimals() public pure override(ERC20, IERC20Metadata) returns (uint8) {
@@ -155,25 +201,27 @@ contract FettiERC20 is ERC20, IERC4626{
         return assets;
     }
 
+    /**
+     * need to test
+     */
     function withdraw(uint256 assets, address receiver, address owner) external override returns (uint256 shares){
         WidthdrawRequest memory req = _requestedWidthdraws[msg.sender];
-        require(req.epocPlaced+_epocWidthdrawWait<=_currEpoc, "No request found or reuqest not withdrawable yet");
-        require(_req.daiToSend==assets, "nonmatching asset request");
-        require(_req.sendTo==recevier, "nonmatching receiver value");
+        require(req.epocPlaced+_epocWidthdrawWait>=_currEpoc, "No request found or reuqest not withdrawable yet");
         require(_dai.balanceOf(address(this))>assets, "Not enough dai in vault");
         require(balanceOf(address(this))>=req.liqToBurn, "not enough liq in the vault");
-        _withdraw(_msgSender(), receiver, owner, assets, shares__);
+        approve(msg.sender,req.daiToSend);
+        _withdraw(_msgSender(), receiver, address(this), req.daiToSend, req.liqToBurn);
         return shares;
     }
 
     function redeem(uint256 shares, address receiver, address owner) external override returns (uint256 assets){
-        require(shares <= maxRedeem(owner), "ERC4626: redeem more than max");
-        require(_requestedWidthdraws[msg.sender].epocPlaced+_opocWidthdrawWait)
-
-        uint256 assets__ = previewRedeem(shares);
-        _withdraw(_msgSender(), receiver, owner, assets__, shares);
-
-        return assets;
+        WidthdrawRequest memory req = _requestedWidthdraws[msg.sender];
+        require(req.epocPlaced+_epocWidthdrawWait>=_currEpoc, "No request found or reuqest not withdrawable yet");
+        require(_dai.balanceOf(address(this))>assets, "Not enough dai in vault");
+        require(balanceOf(address(this))>=req.liqToBurn, "not enough liq in the vault");
+        approve(msg.sender,req.daiToSend);
+        _withdraw(_msgSender(), receiver, address(this), req.daiToSend, req.liqToBurn);
+        return shares;
     }
 
     //vault.totalAssets() or asset.balanceOf, prob balanceOf
