@@ -24,7 +24,7 @@ contract Vault is IVault{
     }
 
     function sendDaiToLoaner(uint256 amount_) external returns(uint256 amount){
-        require(msg.sender==_gov,"only ogv!!!");
+        require(msg.sender==_gov,"only gov!!!");
         require(totalDaiInVault()>amount_,"Don't have enough usdc in vault!");
         SafeERC20.safeTransfer(_dai, address(_loaner), amount_);
         return 0;

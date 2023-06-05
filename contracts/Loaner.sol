@@ -29,7 +29,7 @@ contract Loaner is ILoaner{
     //add usdc in loaner and loaned out amount of all pools
     //add usdc loaned out by iterating through the mapping of pools and calling totalLoaned()
     function totalDai() public view returns(uint256 amount){
-        return totalDaiInLoaner()+totalLoanedOut();
+        return totalDaiInLoaner()+totalLoanedOut()+pendingDai();
     }
 
     function totalDaiInLoaner() public view returns(uint256 assets){
@@ -39,6 +39,10 @@ contract Loaner is ILoaner{
     //iterate through pools and add total loans outstanding
     function totalLoanedOut() public view returns(uint256 amount){
         return _pool.totalLoanedOut();
+    }
+
+    function pendingDai() public view returns(uint256 amount){
+        return _pool.pendingDai()*_pool.lenderSplit();
     }
     
     function addPool(address newPool_, uint256 maxBorrow_) external {
@@ -53,7 +57,7 @@ contract Loaner is ILoaner{
         emit ChangedMax(newMax_);
     }
 
-    function getPoolMax(uint256 poolId_) external view returns(uint256 max){
+    function getPoolMax() external view returns(uint256 max){
         return _maxBorrow;
     }
 
