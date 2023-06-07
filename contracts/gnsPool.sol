@@ -62,6 +62,8 @@ contract gnsPool is IPool, ERC721{
     ILoaner private _loaner;
     address private _vault;
 
+    uint256 public _lockTime;
+
     uint256 public  _borrowerSplit;
     uint256 public _lenderSplit;
     uint256 public _projectSplit;
@@ -99,6 +101,8 @@ contract gnsPool is IPool, ERC721{
         _liqPenalty = 10;
         _liqPenLender = 75;
         _liqPenProject = 25;
+
+        _lockTime = 60;
     }
 
     function totalLoanedOut() external view returns(uint256){
@@ -115,7 +119,7 @@ contract gnsPool is IPool, ERC721{
             updateDaiRatio();
         }
         _gns.transferFrom(msg.sender, address(this), amount_);
-        uint256 unlockTime = block.timestamp + 172800;
+        uint256 unlockTime = block.timestamp + _lockTime;
         _count+=1;
         _outstandingLoans[_count] = Loan(currDaiRatio,0,0,unlockTime, _maxLTV, _minLTVLiq, _lowerLiq, _higherLiq, _lenderSplit, _borrowerSplit, _projectSplit);
         _loanLiqudations[_count] = LoanLiqudationPenalty(_liqPenalty, _liqPenLender, _liqPenProject);

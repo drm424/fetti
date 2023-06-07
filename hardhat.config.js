@@ -1,5 +1,6 @@
 require("@nomicfoundation/hardhat-chai-matchers");
 require("@nomiclabs/hardhat-ethers");
+require('hardhat-contract-sizer');
 require('dotenv').config();
 
 
@@ -11,7 +12,7 @@ module.exports = {
       url: process.env.API_KEY,
       accounts: [process.env.PRIVATE_KEY],
       chainId: 137,
-      gasPrice: 150e9
+      gasPrice: 160e9
     },
   },
 };

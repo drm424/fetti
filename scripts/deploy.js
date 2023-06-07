@@ -21,7 +21,7 @@ async function main() {
   console.log("fetti address: ",fetti.address);
 
   const Loaner = await ethers.getContractFactory("Loaner");
-  const loaner = await Loaner.deploy();
+  const loaner = await Loaner.deploy(fetti.address);
   await loaner.deployed();
   console.log("loaner address: ",loaner.address);
 

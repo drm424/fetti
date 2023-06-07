@@ -1,1 +1,1 @@
-![Liquifi Lending](./archive/LOGO.jpg)
+![Liquifi Lending](archive/LOGO.jpg)

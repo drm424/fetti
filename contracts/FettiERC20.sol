@@ -14,39 +14,7 @@ import "./ILoaner.sol";
 contract FettiERC20 is ERC20, IERC4626{
     using Math for uint256;
 
-    modifier andSync() {
-        if(block.timestamp>=(_epocStartTime+_epocLength)){
-            //PART 1
-            _epocBurnRate = (totalAssets()*1e18)/totalSupply(); 
-            _epocStartTime = block.timestamp;
-            _currEpoc++;
-
-            //PART 2
-            uint256 vaultAssets = _dai.balanceOf(address(_vault));
-            uint256 loanerTotal = _dai.balanceOf(address(_loaner));
-            uint256 daiNeeded = _totalRequested-vaultAssets;
-
-            if(daiNeeded>0){
-                if(loanerTotal<daiNeeded){
-                    _epocWidthdrawWait++;
-                    _loaner.setPoolMax(0);
-                    _loaner.sendToVault(loanerTotal);
-                    _;
-                }else{
-                    _loaner.sendToVault(daiNeeded);
-                    _loaner.setPoolMax(_dai.balanceOf(address(_loaner)));
-                    _;
-                }
-            }else{
-                uint256 daiLeftOver = vaultAssets-_totalRequested;
-                _dai.transfer(address(_loaner), daiLeftOver);
-                _loaner.setPoolMax(_dai.balanceOf(address(_loaner)));
-                _epocWidthdrawWait=1;
-                _;
-            }
-        }
-        _;       
-    }
+    event Test(uint256 x, uint256 y);
  
     struct WidthdrawRequest{
         uint256 epocPlaced;
@@ -84,14 +52,52 @@ contract FettiERC20 is ERC20, IERC4626{
         _epocWidthdrawWait=2;
     }
 
+    function _doSync() public returns(uint256){
+        if(block.timestamp>=(_epocStartTime+_epocLength)){
+
+            if(totalSupply()==0){
+                _epocBurnRate = 0;
+            }else{
+                _epocBurnRate = (totalAssets()*1e18)/totalSupply();
+            }
+            _epocStartTime=block.timestamp;
+            _currEpoc++;
+
+            uint256 vaultBalance = _dai.balanceOf(address(_vault));
+            uint256 loanerBalance = _dai.balanceOf(address(_loaner));
+
+            if(_totalRequested>vaultBalance){
+                if(_totalRequested>(vaultBalance+loanerBalance)){
+                    _epocWidthdrawWait++;
+                    _loaner.sendToVault(loanerBalance);
+                    _loaner.setPoolMax(0);
+                    return _currEpoc;
+                }else{
+                    _loaner.sendToVault((_totalRequested-vaultBalance));
+                    _loaner.setPoolMax(_dai.balanceOf(address(_loaner)));
+                    return _currEpoc;
+                }
+            }else{
+                uint256 daiOverRequest = vaultBalance-_totalRequested;
+                if(daiOverRequest>0){
+                    _vault.sendDaiToLoaner(daiOverRequest);
+                    _loaner.setPoolMax(_dai.balanceOf(address(_loaner)));
+                }
+                _epocWidthdrawWait=1;
+                return _currEpoc;
+            }
+        } 
+        return _currEpoc;   
+    }
+
     /**
      * @param amount_ Amount of LIQGNS (FET in the current repo) to send 
      * @param sendTo_ where the backing dai should be sent to 
      */
-    function requestWidthdraw(uint256 amount_, address sendTo_) external andSync {
+    function requestWidthdraw(uint256 amount_, address sendTo_) external {
         require(balanceOf(msg.sender)>=amount_, "don't have enough tokens");
         require(allowance(msg.sender, address(this))>=amount_, "don't have enough tokens approved");
-        transferFrom(msg.sender, address(this), amount_);
+        SafeERC20.safeTransferFrom(IERC20(this), msg.sender, address(this), amount_);
         uint256 assets_ = (amount_*_epocBurnRate)/(1e18);
         _totalRequested+=assets_;
         _requestedWidthdraws[msg.sender]=WidthdrawRequest(_currEpoc, assets_, amount_, sendTo_);
@@ -188,7 +194,7 @@ contract FettiERC20 is ERC20, IERC4626{
     //changes made in _deposit not here
     //check for deprecation
     //idk what else is needed
-    function deposit(uint256 assets, address receiver) external override andSync returns (uint256 shares){
+    function deposit(uint256 assets, address receiver) external override returns (uint256 shares){
         require(assets <= maxDeposit(receiver), "ERC4626: deposit more than max");
         require(_dai.balanceOf(msg.sender)>=assets, "Not enough assets in the wallet");
         uint256 shares_ = previewDeposit(assets);
@@ -196,7 +202,7 @@ contract FettiERC20 is ERC20, IERC4626{
         return shares;
     }
 
-    function mint(uint256 shares, address receiver) external override andSync returns (uint256 assets){
+    function mint(uint256 shares, address receiver) external override returns (uint256 assets){
         require(shares <= maxMint(receiver), "ERC4626: mint more than max");
 
         uint256 asset_ = previewMint(shares);
@@ -208,7 +214,7 @@ contract FettiERC20 is ERC20, IERC4626{
     /**
      * need to test
      */
-    function withdraw(uint256 assets, address receiver, address owner) external override andSync returns (uint256 shares){
+    function withdraw(uint256 assets, address receiver, address owner) external override returns (uint256 shares){
         WidthdrawRequest memory req = _requestedWidthdraws[msg.sender];
         require(req.epocPlaced+_epocWidthdrawWait>=_currEpoc, "No request found or reuqest not withdrawable yet");
         require(_dai.balanceOf(address(this))>assets, "Not enough dai in vault");
@@ -218,7 +224,7 @@ contract FettiERC20 is ERC20, IERC4626{
         return shares;
     }
 
-    function redeem(uint256 shares, address receiver, address owner) external override andSync returns (uint256 assets){
+    function redeem(uint256 shares, address receiver, address owner) external override returns (uint256 assets){
         WidthdrawRequest memory req = _requestedWidthdraws[msg.sender];
         require(req.epocPlaced+_epocWidthdrawWait>=_currEpoc, "No request found or reuqest not withdrawable yet");
         require(_dai.balanceOf(address(this))>assets, "Not enough dai in vault");
@@ -271,8 +277,5 @@ contract FettiERC20 is ERC20, IERC4626{
         _burn(owner, shares);
         _vault.widthdraw(receiver, assets);
         emit Withdraw(caller, receiver, owner, assets, shares);
-    }
-
-    function justSync() external andSync{
     }
 }

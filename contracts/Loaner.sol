@@ -14,6 +14,7 @@ contract Loaner is ILoaner{
 
     address private _gov;
     address private _fetti;
+    address private _vault; 
 
     IPool private _pool;
     uint256 private _maxBorrow;
@@ -21,9 +22,10 @@ contract Loaner is ILoaner{
     IERC20 private _dai = IERC20(0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063);
   
 
-    constructor(address fetti_){
+    constructor(address fetti_, address vault_){
         _gov = msg.sender;
         _fetti = fetti_;
+        _vault = vault_;
     }
 
     //add usdc in loaner and loaned out amount of all pools
@@ -85,7 +87,7 @@ contract Loaner is ILoaner{
     function sendToVault(uint256 amount_) external returns(uint256){
         require(msg.sender==address(_fetti),"must be fetti");
         require(totalDaiInLoaner()>=amount_,"Don't have enough usdc in loaner!");
-        SafeERC20.safeTransfer(_dai, _fetti, amount_);
+        SafeERC20.safeTransfer(_dai, _vault, amount_);
         return amount_;
     }
 }
