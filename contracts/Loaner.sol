@@ -22,10 +22,16 @@ contract Loaner is ILoaner{
     IERC20 private _dai = IERC20(0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063);
   
 
-    constructor(address fetti_, address vault_){
+    constructor(address fetti_){
         _gov = msg.sender;
         _fetti = fetti_;
+    }
+
+    //set vault after deployment
+    function setVault(address vault_) external returns(address vault){
+        require(_gov==msg.sender, "Must be the gov!!");
         _vault = vault_;
+        return _vault;
     }
 
     //add usdc in loaner and loaned out amount of all pools

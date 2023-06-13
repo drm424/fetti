@@ -84,9 +84,11 @@ contract gnsPool is IPool, ERC721{
         _gov = msg.sender;
         _loaner = ILoaner(loaner_);
         _vault = vault_;
+
         currDaiRatio = 0;
         _count = 0;
         _currLoanedOut = 0;
+        _totalColateral = 0;
 
         _borrowerSplit = 15;
         _lenderSplit = 70;
@@ -201,10 +203,13 @@ contract gnsPool is IPool, ERC721{
         //use loan terms to send the rewards
         updateDaiRatio();
         uint256 rewards = (_outstandingLoans[loanId_].stakedGns*(currDaiRatio-_outstandingLoans[loanId_].daiRatioPayout)/shiftingConstant);
+        uint256 lendRewards = (rewards*_outstandingLoans[loanId_].lenderRewardsSplit)/100;
+        uint256 borrowRewards = (rewards*_outstandingLoans[loanId_].borrowerRewardsSplit)/100;
+        uint256 projectRewards = rewards-lendRewards-borrowRewards;
         _outstandingLoans[loanId_].daiRatioPayout=currDaiRatio;
-        _usdc.transfer(_vault,(rewards*_outstandingLoans[loanId_].lenderRewardsSplit)/100);
-        _usdc.transfer(ownerOf(loanId_),(rewards*_outstandingLoans[loanId_].borrowerRewardsSplit)/100);
-        _usdc.transfer(_gov,(rewards*_outstandingLoans[loanId_].projectRewardsSplit)/100);
+        _usdc.transfer(_vault, lendRewards);
+        _usdc.transfer(ownerOf(loanId_),borrowRewards);
+        _usdc.transfer(_gov, projectRewards);
     }
 
     function borrow(uint256 loanId_, uint256 amount_, address payable sendTo_) external returns(uint256){

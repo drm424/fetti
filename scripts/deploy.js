@@ -33,13 +33,14 @@ async function main() {
   await fetti.setVault(vault.address);
   await fetti.setLoaner(loaner.address);
 
+  await loaner.setVault(vault.address);
+
   const GnsPool = await ethers.getContractFactory("gnsPool");
   const gnsPool = await GnsPool.deploy(loaner.address, vault.address);
   await gnsPool.deployed();
   console.log("gnsPool address: ", gnsPool.address);
 
-  await loaner.connect(owner).addPool(gnsPool.address, Number(10**12));
-  
+  await loaner.connect(owner).addPool(gnsPool.address, Number(0));
 }
 
 main().catch((error) => {

@@ -67,17 +67,22 @@ contract FettiERC20 is ERC20, IERC4626{
             uint256 loanerBalance = _dai.balanceOf(address(_loaner));
 
             if(_totalRequested>vaultBalance){
+                //case 1: the total request in this epoc is greater than the amount in the vault
                 if(_totalRequested>(vaultBalance+loanerBalance)){
+                    //case 1a: the total request in this epoc is greater than all the dai in the system
+                    //meaning there is too much loaned out. bank run case. look into more things to change
                     _epocWidthdrawWait++;
                     _loaner.sendToVault(loanerBalance);
                     _loaner.setPoolMax(0);
                     return _currEpoc;
                 }else{
+                    //case 1b: there is enough dai in the loaner to cover the total requested this epoc
                     _loaner.sendToVault((_totalRequested-vaultBalance));
                     _loaner.setPoolMax(_dai.balanceOf(address(_loaner)));
                     return _currEpoc;
                 }
             }else{
+                //case 2: vault has more than enough to cover withdrawls
                 uint256 daiOverRequest = vaultBalance-_totalRequested;
                 if(daiOverRequest>0){
                     _vault.sendDaiToLoaner(daiOverRequest);
@@ -97,6 +102,7 @@ contract FettiERC20 is ERC20, IERC4626{
     function requestWidthdraw(uint256 amount_, address sendTo_) external {
         require(balanceOf(msg.sender)>=amount_, "don't have enough tokens");
         require(allowance(msg.sender, address(this))>=amount_, "don't have enough tokens approved");
+        _doSync();
         SafeERC20.safeTransferFrom(IERC20(this), msg.sender, address(this), amount_);
         uint256 assets_ = (amount_*_epocBurnRate)/(1e18);
         _totalRequested+=assets_;
@@ -217,9 +223,10 @@ contract FettiERC20 is ERC20, IERC4626{
     function withdraw(uint256 assets, address receiver, address owner) external override returns (uint256 shares){
         WidthdrawRequest memory req = _requestedWidthdraws[msg.sender];
         require(req.epocPlaced+_epocWidthdrawWait>=_currEpoc, "No request found or reuqest not withdrawable yet");
-        require(_dai.balanceOf(address(this))>assets, "Not enough dai in vault");
+        require(_dai.balanceOf(address(_vault))>=assets, "Not enough dai in vault");
         require(balanceOf(address(this))>=req.liqToBurn, "not enough liq in the vault");
-        approve(msg.sender,req.daiToSend);
+        _doSync();
+        _approve(address(this), msg.sender, req.daiToSend);
         _withdraw(_msgSender(), receiver, address(this), req.daiToSend, req.liqToBurn);
         return shares;
     }
@@ -227,9 +234,10 @@ contract FettiERC20 is ERC20, IERC4626{
     function redeem(uint256 shares, address receiver, address owner) external override returns (uint256 assets){
         WidthdrawRequest memory req = _requestedWidthdraws[msg.sender];
         require(req.epocPlaced+_epocWidthdrawWait>=_currEpoc, "No request found or reuqest not withdrawable yet");
-        require(_dai.balanceOf(address(this))>assets, "Not enough dai in vault");
+        require(_dai.balanceOf(address(_vault))>=assets, "Not enough dai in vault");
         require(balanceOf(address(this))>=req.liqToBurn, "not enough liq in the vault");
-        approve(msg.sender,req.daiToSend);
+        _doSync();
+        _approve(address(this), msg.sender, req.daiToSend);
         _withdraw(_msgSender(), receiver, address(this), req.daiToSend, req.liqToBurn);
         return shares;
     }
